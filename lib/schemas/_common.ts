@@ -16,15 +16,6 @@ export type MedioPago = z.infer<typeof medioPago>;
 export const estadoPago = z.enum(["APROBADO", "PENDIENTE", "RECHAZADO"]);
 export type EstadoPago = z.infer<typeof estadoPago>;
 
-export const momentoComida = z.enum([
-  "DESAYUNO",
-  "ALMUERZO",
-  "MERIENDA",
-  "CENA",
-  "SNACK",
-]);
-export type MomentoComida = z.infer<typeof momentoComida>;
-
 export const estadoReserva = z.enum(["CONFIRMADA", "CANCELADA"]);
 export type EstadoReserva = z.infer<typeof estadoReserva>;
 

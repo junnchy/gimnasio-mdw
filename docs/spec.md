@@ -1,116 +1,162 @@
-# Especificación — Administrador de Gimnasio
+# Especificación del sistema
 
-> Fuente de verdad del proyecto. Documenta **qué** hace el sistema, no el cómo.
-> Regla: **si algo no está en esta spec, no se implementa.** Se mantiene durante todo el cuatrimestre.
+> Este documento **es** el relevamiento de requerimientos del proyecto (eje metodológico, clase 2).
+> Se completa en la clase 2 y se mantiene actualizado todo el cuatrimestre.
+> Regla práctica: si una funcionalidad no está acá, no se implementa.
 
-## 1. Problema y beneficio
+## 1. El problema
 
-Los gimnasios gestionan socios, cuotas, rutinas, dietas, clases y el control de acceso de forma dispersa (planillas, papel, WhatsApp). Eso genera cuotas vencidas sin detectar, clases sin control de cupo y cero visibilidad de la ocupación real del local.
-
-**Administrador de Gimnasio** centraliza todo en una web app (PWA) donde el **administrador** gestiona el negocio, el **profesor** arma y sigue el entrenamiento, y el **socio** consulta su plan, reserva clases y registra su ingreso/egreso escaneando un QR. Beneficio: menos tareas manuales, cuotas y cupos bajo control, y datos reales de uso del gym para tomar decisiones.
+**Para quién:** dueños y personal de un gimnasio, y sus socios.
+**Qué hace hoy sin el sistema:** gestionan socios, cuotas, rutinas, clases y el control de acceso con planillas, papel y WhatsApp; no hay registro confiable de quién entra y sale ni de las cuotas vencidas.
+**Qué mejora:** centraliza la gestión del gym en una PWA, controla cuotas y cupos, y registra las visitas por QR para tener datos reales de uso.
 
 ## 2. Roles
 
-- **ADMIN** — gestiona planes, socios, membresías, pagos y clases; ve reportes y ocupación.
-- **PROFESOR** — crea y asigna rutinas y dietas, dicta clases y registra asistencia a clase.
-- **SOCIO** — consulta su rutina/dieta y su estado de cuota, reserva clases y registra su visita al gym por QR.
+| Rol | Quién es | Qué puede hacer que el otro no |
+|---|---|---|
+| ADMIN | Dueño / recepción del gym | Gestiona planes, socios, membresías y pagos; registra pagos; ve reportes y ocupación |
+| PROFESOR | Entrenador | Crea y asigna rutinas, dicta clases y marca la asistencia en las reservas |
+| SOCIO | Cliente del gym | Consulta su rutina y su cuota, reserva y cancela clases, y registra su visita por QR |
 
-(Mínimo 2 requerido; usamos 3 para que los permisos sean distintos y significativos.)
+## 3. Entidades
 
-## 3. Entidades (sustantivos del dominio)
+Los sustantivos que aparecen en las historias de usuario. De acá sale el modelo de datos.
 
-1. **Plan** — plan de membresía (nombre, precio, duración, activo).
-2. **Membresia** — suscripción de un socio a un plan (fechas, estado).
-3. **Pago** — pago de una cuota (monto, fecha, medio, estado).
-4. **Rutina** — rutina de entrenamiento (nombre, objetivo).
-5. **Ejercicio** — catálogo de ejercicios (nombre, grupo muscular, imagen).
-6. **RutinaEjercicio** — ejercicio dentro de una rutina (series, reps, descanso, orden).
-7. **Dieta** — plan alimentario (nombre, objetivo, calorías objetivo).
-8. **ItemDieta** — comida de una dieta (momento, descripción, calorías).
-9. **Clase** — clase grupal (nombre, cupo máximo, inicio, duración).
-10. **Reserva** — reserva de un socio a una clase (fecha, estado).
-11. **Asistencia** — presencia registrada en una clase.
-12. **Visita** — ingreso/egreso general al gym por QR (ingreso, egreso, estado, duración).
+| Entidad | Qué representa | Se relaciona con |
+|---|---|---|
+| Plan | Plan de membresía (precio, duración) | Membresia (1-N) |
+| Membresia | Suscripción de un socio a un plan | Plan (N-1), Socio (N-1), Pago (1-N) |
+| Pago | Pago de una cuota | Membresia (N-1) |
+| Rutina | Rutina de entrenamiento de un socio | Profesor (N-1), Socio (N-1), Ejercicio (N-N vía RutinaEjercicio) |
+| Ejercicio | Catálogo de ejercicios | Rutina (N-N vía RutinaEjercicio) |
+| RutinaEjercicio | Un ejercicio dentro de una rutina (series, reps, descanso) | Rutina (N-1), Ejercicio (N-1) |
+| Clase | Clase grupal con cupo y horario | Profesor (N-1), Reserva (1-N) |
+| Reserva | Reserva de un socio a una clase; incluye la asistencia (`presente`) | Socio (N-1), Clase (N-1) |
+| Visita | Ingreso/egreso general al gym por escaneo de QR | Socio (N-1) |
 
-Relaciones clave: 1-N (Plan→Membresía, Socio→Pagos, Clase→Reservas, Socio→Visitas); N-N (Rutina↔Ejercicio vía RutinaEjercicio, Socio↔Clase vía Reserva).
+> `Socio` y `Profesor` son un mismo `User` diferenciado por su `rol`. La asistencia a clase se modela como el campo `presente` de **Reserva** (no como entidad aparte).
 
-## 4. User stories (con criterios de aceptación)
+## 4. Historias de usuario
 
-### US-1 — Registrar ingreso al gym
-Como **socio**, quiero registrar mi ingreso escaneando el QR de la puerta, para dejar constancia de mi visita.
-- **Given** socio logueado con membresía ACTIVA y sin visita abierta, **When** escanea el QR válido de la puerta, **Then** el sistema crea una Visita con ingreso = ahora y estado ABIERTA, y muestra confirmación.
-- **Error — Given** socio con membresía VENCIDA, **When** escanea, **Then** el sistema rechaza el ingreso y muestra "membresía vencida".
-- **Error — Given** un QR inválido o vencido, **When** escanea, **Then** el sistema rechaza y no crea la visita.
+Formato: **Como** <rol>, **quiero** <acción>, **para** <beneficio>.
+Cada historia lleva su criterio de aceptación: cómo se verifica que está terminada.
 
-### US-2 — Registrar egreso del gym
-Como **socio**, quiero registrar mi salida con el mismo QR, para que se calcule cuánto estuve.
-- **Given** socio con una visita ABIERTA, **When** escanea el QR, **Then** el sistema la cierra (egreso = ahora, estado CERRADA) y muestra la duración.
-- **Error — Given** dos escaneos en menos de 60 segundos, **When** llega el segundo, **Then** el sistema lo ignora (debounce).
+### H1 — Registrar ingreso al gym
+**Como** socio, **quiero** registrar mi ingreso escaneando el QR de la puerta, **para** dejar constancia de mi visita.
 
-### US-3 — Cierre automático de visitas olvidadas
-Como **admin**, quiero que las visitas sin salida se cierren solas, para no ensuciar las métricas.
-- **Given** una visita ABIERTA al cierre del día, **When** corre el proceso, **Then** la marca INCOMPLETA y no computa duración.
+Criterios de aceptación:
+- [ ] Dado un socio logueado con membresía ACTIVA y sin visita abierta, cuando escanea el QR válido, entonces se crea una Visita con ingreso = ahora y estado ABIERTA.
+- [ ] Caso de error: cuando el socio tiene la membresía VENCIDA, el sistema rechaza el ingreso e informa "membresía vencida".
+- [ ] Caso de error: cuando el QR es inválido o vencido, el sistema rechaza y no crea la visita.
 
-### US-4 — Reservar una clase
-Como **socio**, quiero reservar un lugar en una clase, para asegurarme el cupo.
-- **Given** socio con membresía ACTIVA y una clase con cupo disponible, **When** confirma la reserva, **Then** el sistema crea la Reserva CONFIRMADA y descuenta un cupo.
-- **Error — Given** una clase sin cupo, **When** intenta reservar, **Then** el sistema rechaza con "sin cupo disponible".
-- **Error — Given** el socio ya tiene una reserva en el mismo horario, **When** intenta reservar otra, **Then** el sistema rechaza por solapamiento.
+### H2 — Registrar egreso del gym
+**Como** socio, **quiero** registrar mi salida con el mismo QR, **para** que se calcule cuánto estuve.
 
-### US-5 — Cancelar una reserva
-Como **socio**, quiero cancelar una reserva, para liberar el lugar si no voy.
-- **Given** una reserva CONFIRMADA a futuro, **When** el socio la cancela, **Then** el sistema la marca CANCELADA y libera el cupo.
+Criterios de aceptación:
+- [ ] Dado un socio con una visita ABIERTA, cuando escanea el QR, entonces se cierra la visita (egreso = ahora, estado CERRADA) y se muestra la duración.
+- [ ] Caso de error: cuando llega un segundo escaneo en menos de 60 segundos, el sistema lo ignora (debounce).
 
-### US-6 — Registrar el pago de una cuota
-Como **admin**, quiero registrar el pago de una cuota, para activar o renovar la membresía del socio.
-- **Given** un socio con membresía VENCIDA, **When** el admin registra un pago aprobado, **Then** el sistema crea el Pago y pasa la membresía a ACTIVA con nueva fecha de vencimiento.
-- **Error — Given** un pago rechazado, **When** se registra, **Then** la membresía NO se activa y queda constancia del intento.
+### H3 — Cierre automático de visitas olvidadas
+**Como** admin, **quiero** que las visitas sin salida se cierren solas, **para** no ensuciar las métricas.
 
-### US-7 — Consultar mi estado de cuota
-Como **socio**, quiero ver si mi cuota está al día, para saber si puedo usar el gym.
-- **Given** socio logueado, **When** abre su panel, **Then** ve el estado de su membresía (ACTIVA/VENCIDA) y la fecha de vencimiento.
+Criterios de aceptación:
+- [ ] Dado una visita ABIERTA al cierre del día, cuando corre el proceso, entonces la marca INCOMPLETA y no computa duración.
 
-## 5. Workflow principal (no es un ABM)
+### H4 — Reservar una clase
+**Como** socio, **quiero** reservar un lugar en una clase, **para** asegurarme el cupo.
 
-**Registro de visita por QR (ingreso/egreso con lógica por estado):**
+Criterios de aceptación:
+- [ ] Dado un socio con membresía ACTIVA y una clase con cupo, cuando confirma la reserva, entonces se crea la Reserva CONFIRMADA y se descuenta un cupo.
+- [ ] Caso de error: cuando la clase no tiene cupo, el sistema rechaza con "sin cupo disponible".
+- [ ] Caso de error: cuando el socio ya tiene una reserva en el mismo horario, el sistema rechaza por solapamiento.
+
+### H5 — Cancelar una reserva
+**Como** socio, **quiero** cancelar una reserva, **para** liberar el lugar si no voy.
+
+Criterios de aceptación:
+- [ ] Dado una reserva CONFIRMADA a futuro, cuando el socio la cancela, entonces se marca CANCELADA y se libera el cupo.
+
+### H6 — Marcar asistencia a una clase
+**Como** profesor, **quiero** marcar qué socios asistieron a mi clase, **para** llevar el control.
+
+Criterios de aceptación:
+- [ ] Dado una reserva CONFIRMADA de una clase ya dictada, cuando el profesor la marca como presente, entonces se setea `presente = true` en esa reserva.
+- [ ] Caso de error: cuando la reserva está CANCELADA, el sistema no permite marcar asistencia.
+
+### H7 — Registrar el pago de una cuota
+**Como** admin, **quiero** registrar el pago de una cuota, **para** activar o renovar la membresía del socio.
+
+Criterios de aceptación:
+- [ ] Dado un socio con membresía VENCIDA, cuando el admin registra un pago aprobado, entonces se crea el Pago y la membresía pasa a ACTIVA con nueva fecha de vencimiento.
+- [ ] Caso de error: cuando el pago es rechazado, la membresía NO se activa y queda constancia del intento.
+
+### H8 — Consultar mi estado de cuota
+**Como** socio, **quiero** ver si mi cuota está al día, **para** saber si puedo usar el gym.
+
+Criterios de aceptación:
+- [ ] Dado un socio logueado, cuando abre su panel, entonces ve el estado de su membresía (ACTIVA/VENCIDA) y la fecha de vencimiento.
+
+## 5. Flujo principal
+
+Registro de visita por QR (ingreso/egreso con lógica por estado):
+
 1. El socio, logueado en la PWA, escanea el QR **fijo** de la puerta.
-2. El **servidor** valida: socio autenticado, membresía ACTIVA, token del QR válido y (opcional) geolocalización dentro del gym.
+2. El servidor valida: socio autenticado, membresía ACTIVA, token del QR válido y (opcional) geolocalización dentro del gym.
 3. Si el socio **no** tiene visita ABIERTA → crea una nueva (ingreso).
 4. Si **ya** tiene una visita ABIERTA → la cierra y calcula la duración (egreso).
 5. Las visitas ABIERTAS al cierre del día se marcan INCOMPLETA.
+6. El dato alimenta reportes de ocupación por franja horaria, horarios pico y frecuencia/duración de visita por socio.
 
-Este dato alimenta reportes de ocupación por franja horaria, horarios pico y frecuencia/duración de visita por socio.
+## 6. Reglas de negocio
 
-## 6. Reglas de negocio (que la IA no puede inferir)
+Las restricciones que **no** son obvias y que la IA no puede adivinar. Estas son las que hay que revisar a mano.
 
-- Solo socios con membresía **ACTIVA** pueden reservar clases y registrar ingreso.
-- Un socio **no puede tener más de una visita ABIERTA** simultánea.
-- Un socio **no puede tener dos reservas en el mismo horario**.
-- La **duración** de una visita se calcula solo cuando pasa a CERRADA.
-- El **cupo** de una clase nunca puede quedar negativo; una reserva CANCELADA libera cupo.
-- Toda validación sensible (membresía, cupo, token del QR, geoloc) se ejecuta **en el servidor**; el cliente no es confiable.
-- La membresía pasa a **VENCIDA** automáticamente cuando la fecha de fin es anterior a hoy.
+- Solo socios con membresía ACTIVA pueden reservar clases y registrar ingreso.
+- Un socio no puede tener más de una visita ABIERTA simultánea.
+- Un socio no puede tener dos reservas en el mismo horario.
+- La duración de una visita se calcula solo cuando pasa a CERRADA.
+- El cupo de una clase nunca puede quedar negativo; una reserva CANCELADA libera cupo.
+- La asistencia (`presente`) solo se puede marcar sobre una reserva CONFIRMADA.
+- La membresía pasa a VENCIDA automáticamente cuando la fecha de fin es anterior a hoy.
+- Toda validación sensible (membresía, cupo, token del QR, geoloc) corre en el servidor.
 
 ## 7. Requisitos no funcionales
 
-### Accesibilidad (WCAG AA)
-- Operable **por teclado** con foco visible.
-- Todos los campos de formulario con **label** asociado.
-- **Alt text** en imágenes informativas (ej. ejercicios).
-- Contraste mínimo **4.5:1**.
-- Errores comunicados **con texto**, no solo con color.
-- El registro de visita ofrece un **fallback manual** (código en recepción) para quien no pueda usar la cámara.
+No son funcionalidades: son condiciones que todo el sistema tiene que cumplir. Se escriben ahora
+porque al final del cuatrimestre ya no se pueden arreglar. En la **clase 10** se auditan contra lo
+que hayan construido.
 
-### Usabilidad (MEELS, medible)
-- **Eficiencia:** registrar ingreso por QR en ≤ 3 segundos desde que se abre la cámara.
-- **Errores:** los mensajes indican qué pasó y cómo resolverlo (ej. "membresía vencida: regularizá tu cuota").
-- **Aprendibilidad:** un socio nuevo registra su primera visita sin instrucciones externas.
-- **Memorabilidad:** un socio que vuelve a la semana repite el flujo sin reaprenderlo.
-- **Satisfacción:** el socio puede consultar su historial de visitas y cuota en su panel.
+### Usabilidad
 
-## 8. Fuera de alcance (por ahora)
+- **Eficiencia:** registrar el ingreso por QR se hace en 2 interacciones o menos (abrir cámara → escanear).
+- **Errores:** si falta un campo obligatorio (ej. alta de socio), se señala el campo y no se pierde lo ya cargado.
+- **Aprendizaje:** un socio que nunca vio el sistema registra su primera visita sin que le expliquen.
+- **Recuerdo:** el escaneo de QR y "mis reservas" están a un clic desde la home y siempre en el mismo lugar.
+- **Satisfacción:** se prueba con una persona de afuera del equipo antes del Demo Day.
 
-- App nativa (iOS/Android); se entrega como **PWA**.
+### Accesibilidad
+
+Esta lista es **igual para todos los proyectos**: no hay que adaptarla, hay que cumplirla.
+
+- [ ] Todo se puede operar **con el teclado**, y se ve dónde está el foco.
+- [ ] Los campos de formulario tienen `label` asociado, no solo *placeholder*.
+- [ ] Las imágenes que informan tienen texto alternativo; las decorativas, alternativo vacío.
+- [ ] El **contraste** entre texto y fondo llega a **4,5:1** (3:1 si la letra es grande).
+- [ ] El error nunca se comunica **solo con color**: siempre hay texto.
+
+## 8. Integración externa
+
+**Cuál:** pagos (Mercado Pago).
+**Para qué:** cobrar las cuotas de membresía online y actualizar automáticamente el estado del socio.
+**Qué pasa si se cae:** el admin puede registrar el pago de forma manual (medio EFECTIVO) para no bloquear el acceso del socio; el cobro online se reintenta cuando el servicio vuelve.
+
+## 9. Fuera de alcance
+
+Lo que decidimos **no** hacer, para no volver a discutirlo en la clase 12.
+
+- **Módulo de nutrición / dietas** (Dieta e ItemDieta): se recorta del MVP para enfocarnos en el núcleo del gym.
+- **Asistencia como entidad separada**: se modela como el campo `presente` de Reserva.
+- App nativa (iOS/Android): se entrega como **PWA**.
 - QR rotativo con token firmado por hardware de recepción (el MVP usa QR fijo + socio logueado).
 - Facturación electrónica / integración contable.
 - Torniquete o control físico de acceso (molinete).
