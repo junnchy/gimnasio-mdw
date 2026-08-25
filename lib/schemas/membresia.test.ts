@@ -32,7 +32,6 @@ describe("reservaSchema", () => {
     const r = reservaSchema.parse({
       socioId: "s1",
       claseId: "c1",
-      fecha: "2026-03-01",
     });
     expect(r.presente).toBe(false);
   });

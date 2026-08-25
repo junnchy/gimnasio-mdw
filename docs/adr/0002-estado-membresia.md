@@ -36,3 +36,9 @@ Elegimos **guardar solo los hechos** y calcular `VENCIDA` al leer.
 - Más fácil: el estado nunca queda mintiendo; no hay proceso de "cierre de membresías".
 - Más difícil: el código que muestre el estado (H8) tiene que calcular `VENCIDA` al leer; se apoya en `@@index([fechaFin])`.
 - Hay que revisar si aparece algún flujo que necesite guardar `VENCIDA` como hecho (ej. reportes que congelen el estado de un momento dado): ahí sería un campo aparte, no esta columna.
+
+## Implementación y precedencia
+
+La regla vive en un solo lugar, `estadoMembresiaVista()` en `lib/membresia.ts` (con test en `lib/membresia.test.ts`). Todas las pantallas la usan, para no tener tres versiones del cálculo.
+
+Precedencia que el ADR no aclaraba y quedó decidida acá: **una membresía CANCELADA es CANCELADA aunque su `fechaFin` ya haya pasado** — cancelar es un acto que alguien realizó; VENCIDA es una conclusión del paso del tiempo y no pisa un hecho.

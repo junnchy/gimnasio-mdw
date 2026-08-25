@@ -5,7 +5,8 @@
  *
  * Por qué existe: para que los cuatro integrantes del equipo trabajen contra
  * los mismos datos y para poder mostrar el sistema sin cargar todo a mano.
- * Debe poder correrse varias veces sin romper (por eso usamos upsert).
+ * Debe poder correrse varias veces sin romper: `upsert` donde hay clave única
+ * (email de User, nombre de Plan) y `findFirst` + `create` en el resto.
  */
 import { PrismaClient, Rol, EstadoMembresia, EstadoVisita } from "@prisma/client";
 
@@ -38,12 +39,11 @@ async function main() {
     create: { email: "socio-vencido@ejemplo.com", nombre: "Socio Vencido", rol: Rol.SOCIO },
   });
 
-  let plan = await prisma.plan.findFirst({ where: { nombre: "Mensual" } });
-  if (!plan) {
-    plan = await prisma.plan.create({
-      data: { nombre: "Mensual", descripcion: "Acceso ilimitado", precio: 30000, duracionDias: 30 },
-    });
-  }
+  const plan = await prisma.plan.upsert({
+    where: { nombre: "Mensual" },
+    update: {},
+    create: { nombre: "Mensual", descripcion: "Acceso ilimitado", precio: 30000, duracionDias: 30 },
+  });
 
   const hoy = new Date();
   const membresia = await prisma.membresia.findFirst({
@@ -143,7 +143,7 @@ async function main() {
       },
     });
     await prisma.reserva.create({
-      data: { socioId: socio.id, claseId: creada.id, fecha: new Date(hoy.getTime() + 2 * 86400000) },
+      data: { socioId: socio.id, claseId: creada.id },
     });
   }
 

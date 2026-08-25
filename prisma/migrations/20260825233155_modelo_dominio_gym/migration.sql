@@ -7,7 +7,7 @@
 
 */
 -- CreateEnum
-CREATE TYPE "EstadoMembresia" AS ENUM ('ACTIVA', 'VENCIDA', 'CANCELADA');
+CREATE TYPE "EstadoMembresia" AS ENUM ('ACTIVA', 'CANCELADA');
 
 -- CreateEnum
 CREATE TYPE "MedioPago" AS ENUM ('EFECTIVO', 'MP');
@@ -46,8 +46,8 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "nombre" TEXT NOT NULL,
     "rol" "Rol" NOT NULL DEFAULT 'SOCIO',
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "actualizadaEn" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -57,10 +57,11 @@ CREATE TABLE "Plan" (
     "id" TEXT NOT NULL,
     "nombre" TEXT NOT NULL,
     "descripcion" TEXT,
-    "precio" DECIMAL(65,30) NOT NULL,
+    "precio" DECIMAL(10,2) NOT NULL,
     "duracionDias" INTEGER NOT NULL,
     "activo" BOOLEAN NOT NULL DEFAULT true,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Plan_pkey" PRIMARY KEY ("id")
 );
@@ -73,8 +74,8 @@ CREATE TABLE "Membresia" (
     "fechaInicio" TIMESTAMP(3) NOT NULL,
     "fechaFin" TIMESTAMP(3) NOT NULL,
     "estado" "EstadoMembresia" NOT NULL DEFAULT 'ACTIVA',
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "actualizadaEn" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Membresia_pkey" PRIMARY KEY ("id")
 );
@@ -83,12 +84,13 @@ CREATE TABLE "Membresia" (
 CREATE TABLE "Pago" (
     "id" TEXT NOT NULL,
     "membresiaId" TEXT NOT NULL,
-    "monto" DECIMAL(65,30) NOT NULL,
+    "monto" DECIMAL(10,2) NOT NULL,
     "fecha" TIMESTAMP(3) NOT NULL,
     "medio" "MedioPago" NOT NULL,
     "estado" "EstadoPago" NOT NULL DEFAULT 'PENDIENTE',
     "refExterna" TEXT,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Pago_pkey" PRIMARY KEY ("id")
 );
@@ -100,8 +102,8 @@ CREATE TABLE "Rutina" (
     "objetivo" TEXT,
     "profesorId" TEXT NOT NULL,
     "socioId" TEXT NOT NULL,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "actualizadaEn" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Rutina_pkey" PRIMARY KEY ("id")
 );
@@ -113,7 +115,8 @@ CREATE TABLE "Ejercicio" (
     "grupoMuscular" TEXT NOT NULL,
     "descripcion" TEXT,
     "imagenUrl" TEXT,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Ejercicio_pkey" PRIMARY KEY ("id")
 );
@@ -127,7 +130,8 @@ CREATE TABLE "RutinaEjercicio" (
     "repeticiones" INTEGER NOT NULL,
     "descansoSeg" INTEGER NOT NULL,
     "orden" INTEGER NOT NULL,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "RutinaEjercicio_pkey" PRIMARY KEY ("id")
 );
@@ -141,8 +145,8 @@ CREATE TABLE "Clase" (
     "inicio" TIMESTAMP(3) NOT NULL,
     "duracionMin" INTEGER NOT NULL,
     "sala" TEXT,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "actualizadaEn" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Clase_pkey" PRIMARY KEY ("id")
 );
@@ -152,11 +156,10 @@ CREATE TABLE "Reserva" (
     "id" TEXT NOT NULL,
     "socioId" TEXT NOT NULL,
     "claseId" TEXT NOT NULL,
-    "fecha" TIMESTAMP(3) NOT NULL,
     "estado" "EstadoReserva" NOT NULL DEFAULT 'CONFIRMADA',
     "presente" BOOLEAN NOT NULL DEFAULT false,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "actualizadaEn" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Reserva_pkey" PRIMARY KEY ("id")
 );
@@ -168,9 +171,8 @@ CREATE TABLE "Visita" (
     "ingresoAt" TIMESTAMP(3) NOT NULL,
     "egresoAt" TIMESTAMP(3),
     "estado" "EstadoVisita" NOT NULL,
-    "duracionMin" INTEGER,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "actualizadaEn" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Visita_pkey" PRIMARY KEY ("id")
 );
@@ -179,13 +181,16 @@ CREATE TABLE "Visita" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Plan_nombre_key" ON "Plan"("nombre");
+
+-- CreateIndex
 CREATE INDEX "Membresia_socioId_idx" ON "Membresia"("socioId");
 
 -- CreateIndex
 CREATE INDEX "Membresia_planId_idx" ON "Membresia"("planId");
 
 -- CreateIndex
-CREATE INDEX "Membresia_estado_fechaFin_idx" ON "Membresia"("estado", "fechaFin");
+CREATE INDEX "Membresia_fechaFin_idx" ON "Membresia"("fechaFin");
 
 -- CreateIndex
 CREATE INDEX "Pago_membresiaId_idx" ON "Pago"("membresiaId");
@@ -212,16 +217,13 @@ CREATE INDEX "Clase_profesorId_idx" ON "Clase"("profesorId");
 CREATE INDEX "Clase_inicio_idx" ON "Clase"("inicio");
 
 -- CreateIndex
+CREATE INDEX "Reserva_socioId_idx" ON "Reserva"("socioId");
+
+-- CreateIndex
 CREATE INDEX "Reserva_claseId_idx" ON "Reserva"("claseId");
 
 -- CreateIndex
-CREATE INDEX "Reserva_fecha_idx" ON "Reserva"("fecha");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Reserva_socioId_claseId_key" ON "Reserva"("socioId", "claseId");
-
--- CreateIndex
-CREATE INDEX "Visita_socioId_idx" ON "Visita"("socioId");
+CREATE INDEX "Visita_socioId_estado_idx" ON "Visita"("socioId", "estado");
 
 -- CreateIndex
 CREATE INDEX "Visita_ingresoAt_idx" ON "Visita"("ingresoAt");
@@ -254,7 +256,19 @@ ALTER TABLE "Clase" ADD CONSTRAINT "Clase_profesorId_fkey" FOREIGN KEY ("profeso
 ALTER TABLE "Reserva" ADD CONSTRAINT "Reserva_socioId_fkey" FOREIGN KEY ("socioId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Reserva" ADD CONSTRAINT "Reserva_claseId_fkey" FOREIGN KEY ("claseId") REFERENCES "Clase"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Reserva" ADD CONSTRAINT "Reserva_claseId_fkey" FOREIGN KEY ("claseId") REFERENCES "Clase"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Visita" ADD CONSTRAINT "Visita_socioId_fkey" FOREIGN KEY ("socioId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Índices únicos parciales (reglas de negocio, spec §6). Prisma no los
+-- expresa: se agregan a mano y hay que conservarlos al regenerar.
+-- Reserva: un socio solo puede tener UNA reserva CONFIRMADA de la misma
+-- clase, pero puede re-reservar después de cancelar (la CANCELADA no ocupa
+-- la clave).
+CREATE UNIQUE INDEX "Reserva_socio_clase_confirmada_key"
+  ON "Reserva"("socioId", "claseId") WHERE "estado" = 'CONFIRMADA';
+
+-- Visita: un socio no puede tener más de una visita ABIERTA a la vez.
+CREATE UNIQUE INDEX "Visita_socio_abierta_key"
+  ON "Visita"("socioId") WHERE "estado" = 'ABIERTA';
