@@ -7,7 +7,11 @@ export const id = z.string().min(1, "id requerido");
 export const rolUsuario = z.enum(["ADMIN", "PROFESOR", "SOCIO"]);
 export type RolUsuario = z.infer<typeof rolUsuario>;
 
-export const estadoMembresia = z.enum(["ACTIVA", "VENCIDA", "CANCELADA"]);
+// Qué SÍ se guarda: hechos que alguien realizó (pago aprobado, cancelación).
+// VENCIDA NO es un valor válido de entrada ni de base: se vence sola cuando
+// `fechaFin` es anterior a hoy (spec §6), así que se calcula al leer. Que el
+// schema y la base den el mismo resultado es una regla de la clase 3.
+export const estadoMembresia = z.enum(["ACTIVA", "CANCELADA"]);
 export type EstadoMembresia = z.infer<typeof estadoMembresia>;
 
 export const medioPago = z.enum(["EFECTIVO", "MP"]);

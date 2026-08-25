@@ -94,7 +94,7 @@ Criterios de aceptación:
 **Como** socio, **quiero** ver si mi cuota está al día, **para** saber si puedo usar el gym.
 
 Criterios de aceptación:
-- [ ] Dado un socio logueado, cuando abre su panel, entonces ve el estado de su membresía (ACTIVA/VENCIDA) y la fecha de vencimiento.
+- [ ] Dado un socio logueado, cuando abre su panel, entonces ve el estado de su membresía (ACTIVA/CANCELADA son hechos guardados; VENCIDA se calcula al leer, ver ADR 0002) y la fecha de vencimiento.
 
 ## 5. Flujo principal
 
@@ -114,10 +114,10 @@ Las restricciones que **no** son obvias y que la IA no puede adivinar. Estas son
 - Solo socios con membresía ACTIVA pueden reservar clases y registrar ingreso.
 - Un socio no puede tener más de una visita ABIERTA simultánea.
 - Un socio no puede tener dos reservas en el mismo horario.
-- La duración de una visita se calcula solo cuando pasa a CERRADA.
+- La duración de una visita se calcula de `ingresoAt`/`egresoAt` al leer, nunca se guarda (ADR 0003); una visita INCOMPLETA no computa duración.
 - El cupo de una clase nunca puede quedar negativo; una reserva CANCELADA libera cupo.
 - La asistencia (`presente`) solo se puede marcar sobre una reserva CONFIRMADA.
-- La membresía pasa a VENCIDA automáticamente cuando la fecha de fin es anterior a hoy.
+- VENCIDA se calcula al leer la membresía (`fechaFin` anterior a hoy); nunca se guarda como estado. Decisión y precedencia en [ADR 0002](adr/0002-estado-membresia.md).
 - Toda validación sensible (membresía, cupo, token del QR, geoloc) corre en el servidor.
 
 ## 7. Requisitos no funcionales

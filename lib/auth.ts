@@ -10,7 +10,7 @@
  * cualquiera puede mentir.
  */
 
-export type Rol = "ADMIN" | "USUARIO";
+export type Rol = "ADMIN" | "PROFESOR" | "SOCIO";
 
 export type UsuarioSesion = {
   id: string;
