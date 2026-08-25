@@ -1,13 +1,9 @@
 // Test mínimo de las reglas críticas de los schemas.
-// NOTA: alineá la primera línea de import con el runner del repo (mirá `nota.test.ts`).
-// - Vitest:  import { describe, it, expect } from "vitest";
-// - Jest:    (usa globals, podés borrar el import)
-// - node:test: import { test } from "node:test"; import assert from "node:assert";
 import { describe, it, expect } from "vitest";
 import { membresiaSchema } from "./membresia";
 import { registrarEscaneoSchema } from "./escaneo";
 import { reservaSchema } from "./reserva";
-import { estadoVisita } from "./_common";
+import { estadoVisita, estadoMembresia } from "./_common";
 
 describe("membresiaSchema", () => {
   it("rechaza fechaFin anterior a fechaInicio", () => {
@@ -52,5 +48,16 @@ describe("registrarEscaneoSchema", () => {
 describe("estadoVisita", () => {
   it("rechaza un estado inválido", () => {
     expect(estadoVisita.safeParse("PAUSADA").success).toBe(false);
+  });
+});
+
+describe("estadoMembresia", () => {
+  it("VENCIDA no se puede setear: se calcula al leer (ADR 0002)", () => {
+    expect(estadoMembresia.safeParse("VENCIDA").success).toBe(false);
+  });
+
+  it("acepta solo los hechos que se guardan", () => {
+    expect(estadoMembresia.safeParse("ACTIVA").success).toBe(true);
+    expect(estadoMembresia.safeParse("CANCELADA").success).toBe(true);
   });
 });
