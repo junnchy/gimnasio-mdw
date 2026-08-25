@@ -77,3 +77,15 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - Cambios chicos y enfocados. No refactorices archivos que no tienen que ver con la tarea.
 - Antes de crear un helper nuevo, buscá si ya existe uno en `lib/`.
 - Cuando toques algo de seguridad o del modelo de datos, explicá el porqué del cambio: son las dos áreas que se revisan línea por línea.
+
+## Fuente de verdad
+- El **qué** del sistema vive en `docs/spec.md`. Regla: **si no está en la spec, no se implementa.**
+- Los **contratos de datos** viven en `lib/schemas/` (Zod). Los tipos se derivan con `z.infer`, nunca se escriben a mano en paralelo.
+
+## Reglas verificables (Clase 2)
+- **Prohibido `any`** (lo verifica el linter). Ante datos desconocidos usar `unknown` y validar antes de usar.
+- **Todo input externo** (formularios, body de HTTP, params, respuestas de API) se valida con un schema de **Zod** en el borde del sistema, antes de tocar la base.
+- Los **estados** se modelan con **uniones literales** (`z.enum([...])`), nunca strings sueltos.
+- Los strings llevan **límites explícitos** (`min`/`max`/`format`).
+- Las fechas que vienen de formularios/JSON se parsean con `z.coerce.date()`.
+- Usar `safeParse()` cuando se quiere manejar el error como resultado; `parse()` solo cuando un fallo debe cortar el flujo.

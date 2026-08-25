@@ -1,0 +1,12 @@
+import { z } from "zod";
+import { id, medioPago, estadoPago } from "./_common";
+
+export const pagoSchema = z.object({
+  membresiaId: id,
+  monto: z.number().positive(),
+  fecha: z.coerce.date(),
+  medio: medioPago,
+  estado: estadoPago.default("PENDIENTE"),
+  refExterna: z.string().max(120).optional(),
+});
+export type Pago = z.infer<typeof pagoSchema>;
