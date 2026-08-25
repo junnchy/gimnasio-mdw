@@ -254,6 +254,12 @@ model Reserva {
   // migración, no como @@unique:
   //   CREATE UNIQUE INDEX "Reserva_socio_clase_confirmada_key"
   //     ON "Reserva"("socioId","claseId") WHERE "estado" = 'CONFIRMADA';
+  //
+  // TODO (H4): la spec §6 también dice "un socio no puede tener dos reservas
+  // en el mismo horario". El índice de arriba cubre "la misma clase", pero si
+  // dos clases se superponen, el socio podría anotarse en las dos. La base no
+  // puede expresarlo (hay que comparar Clase.inicio + duracionMin), así que
+  // va como validación en `lib/db/reservas.ts` al implementar la H4.
   @@index([socioId])
   @@index([claseId])
 }
