@@ -12,7 +12,7 @@ import { PrismaClient, Rol } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  const admin = await prisma.usuario.upsert({
+  await prisma.usuario.upsert({
     where: { email: "admin@ejemplo.com" },
     update: {},
     create: {
@@ -22,13 +22,24 @@ async function main() {
     },
   });
 
-  await prisma.nota.deleteMany({ where: { autorId: admin.id } });
+  await prisma.usuario.upsert({
+    where: { email: "profesor@ejemplo.com" },
+    update: {},
+    create: {
+      email: "profesor@ejemplo.com",
+      nombre: "Profesor de ejemplo",
+      rol: Rol.PROFESOR,
+    },
+  });
 
-  await prisma.nota.createMany({
-    data: [
-      { titulo: "Primera nota", contenido: "Datos de ejemplo.", autorId: admin.id },
-      { titulo: "Segunda nota", contenido: "Borrar en la clase 3.", autorId: admin.id },
-    ],
+  await prisma.usuario.upsert({
+    where: { email: "socio@ejemplo.com" },
+    update: {},
+    create: {
+      email: "socio@ejemplo.com",
+      nombre: "Socio de ejemplo",
+      rol: Rol.SOCIO,
+    },
   });
 
   console.log("Seed completo.");

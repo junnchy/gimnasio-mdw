@@ -1,61 +1,197 @@
-// Modelo de datos del proyecto.
-//
-// Lo que hay acá abajo es un EJEMPLO MÍNIMO para que el proyecto arranque.
-// En la clase 3 lo reemplazan por el modelo de su propio dominio.
-//
-// Después de cualquier cambio en este archivo:
-//   npx prisma migrate dev --name <descripcion-del-cambio>
-
+// Modelo del gimnasio. Cada entidad sale de docs/spec.md.
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-
-  // Vercel es serverless, así que hacen falta dos conexiones distintas:
-  //   DATABASE_URL → el pooler, que la app usa en cada request
-  //   DIRECT_URL   → la conexión directa, que usan las migraciones
-  // Con una sola funciona en clase y se cae en producción por agotar
-  // las conexiones de Postgres.
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-// ¿El equipo eligió MongoDB? Se cambia el provider a "mongodb", se usa una
-// connection string de MongoDB Atlas y se sincroniza con `prisma db push`
-// en lugar de `prisma migrate dev`. El resto del proyecto no cambia.
-// Ojo: con Mongo los ids llevan @map("_id") @db.ObjectId y la integridad
-// referencial la garantiza el código, no la base.
-
 enum Rol {
   ADMIN
-  USUARIO
+  PROFESOR
+  SOCIO
+}
+
+enum EstadoMembresia {
+  ACTIVA
+  VENCIDA
+  CANCELADA
+}
+
+enum MedioPago {
+  EFECTIVO
+  MP
+}
+
+enum EstadoPago {
+  APROBADO
+  PENDIENTE
+  RECHAZADO
+}
+
+enum EstadoReserva {
+  CONFIRMADA
+  CANCELADA
+}
+
+enum EstadoVisita {
+  ABIERTA
+  CERRADA
+  INCOMPLETA
 }
 
 model Usuario {
   id        String   @id @default(cuid())
   email     String   @unique
   nombre    String
-  rol       Rol      @default(USUARIO)
+  rol       Rol      @default(SOCIO)
   creadoEn  DateTime @default(now())
 
-  notas     Nota[]
+  membresias       Membresia[]
+  clasesDictadas   Clase[]      @relation("ProfesorDeClase")
+  reservas         Reserva[]
+  visitas          Visita[]
+  rutinasCreadas   Rutina[]     @relation("ProfesorDeRutina")
+  rutinasAsignadas Rutina[]     @relation("SocioDeRutina")
 }
 
-// Entidad de ejemplo: bórrenla en la clase 3.
-// Muestra el patrón de una relación 1-N con su índice.
-model Nota {
+model Plan {
+  id           String       @id @default(cuid())
+  nombre       String       @unique
+  descripcion  String?
+  precio       Decimal      @db.Decimal(12, 2)
+  duracionDias Int
+  activo       Boolean      @default(true)
+  creadoEn     DateTime     @default(now())
+
+  membresias Membresia[]
+}
+
+model Membresia {
+  id          String           @id @default(cuid())
+  fechaInicio DateTime
+  fechaFin    DateTime
+  estado      EstadoMembresia  @default(ACTIVA)
+  creadaEn    DateTime         @default(now())
+
+  socio   Usuario @relation(fields: [socioId], references: [id], onDelete: Restrict)
+  socioId String
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  planId  String
+  pagos   Pago[]
+
+  @@index([socioId, fechaFin])
+  @@index([planId])
+}
+
+model Pago {
+  id          String      @id @default(cuid())
+  monto       Decimal     @db.Decimal(12, 2)
+  fecha       DateTime
+  medio       MedioPago
+  estado      EstadoPago  @default(PENDIENTE)
+  refExterna  String?
+  creadoEn    DateTime    @default(now())
+
+  membresia   Membresia  @relation(fields: [membresiaId], references: [id], onDelete: Restrict)
+  membresiaId String
+
+  @@index([membresiaId])
+}
+
+model Clase {
+  id          String   @id @default(cuid())
+  nombre      String
+  cupoMaximo  Int
+  inicio      DateTime
+  duracionMin Int
+  sala        String?
+  creadaEn    DateTime @default(now())
+
+  profesor   Usuario  @relation("ProfesorDeClase", fields: [profesorId], references: [id], onDelete: Restrict)
+  profesorId String
+  reservas   Reserva[]
+
+  @@index([profesorId, inicio])
+  @@index([inicio])
+}
+
+model Reserva {
+  id        String        @id @default(cuid())
+  estado    EstadoReserva @default(CONFIRMADA)
+  presente  Boolean       @default(false)
+  creadaEn  DateTime      @default(now())
+
+  socio   Usuario @relation(fields: [socioId], references: [id], onDelete: Restrict)
+  socioId String
+  clase   Clase   @relation(fields: [claseId], references: [id], onDelete: Restrict)
+  claseId String
+
+  @@unique([socioId, claseId])
+  @@index([claseId, estado])
+  @@index([socioId, estado])
+}
+
+model Visita {
+  id          String        @id @default(cuid())
+  ingresoAt   DateTime
+  egresoAt    DateTime?
+  estado      EstadoVisita  @default(ABIERTA)
+  duracionMin Int?
+  creadaEn    DateTime      @default(now())
+
+  socio   Usuario @relation(fields: [socioId], references: [id], onDelete: Restrict)
+  socioId String
+
+  @@index([socioId, estado])
+  @@index([ingresoAt])
+}
+
+model Rutina {
   id            String   @id @default(cuid())
-  titulo        String
-  contenido     String
+  nombre        String
+  objetivo      String?
   creadaEn      DateTime @default(now())
   actualizadaEn DateTime @updatedAt
 
-  autor         Usuario  @relation(fields: [autorId], references: [id], onDelete: Cascade)
-  autorId       String
+  profesor   Usuario @relation("ProfesorDeRutina", fields: [profesorId], references: [id], onDelete: Restrict)
+  profesorId String
+  socio      Usuario @relation("SocioDeRutina", fields: [socioId], references: [id], onDelete: Restrict)
+  socioId    String
+  ejercicios RutinaEjercicio[]
 
-  // Índice sobre la foreign key: sin esto, listar las notas de un usuario
-  // obliga a Postgres a recorrer la tabla entera.
-  @@index([autorId])
+  @@index([profesorId])
+  @@index([socioId])
+}
+
+model Ejercicio {
+  id            String   @id @default(cuid())
+  nombre        String
+  grupoMuscular String
+  descripcion   String?
+  imagenUrl     String?
+  creadoEn      DateTime @default(now())
+
+  rutinas RutinaEjercicio[]
+
+  @@unique([nombre, grupoMuscular])
+}
+
+model RutinaEjercicio {
+  id           String @id @default(cuid())
+  series       Int
+  repeticiones Int
+  descansoSeg  Int
+  orden        Int
+
+  rutina      Rutina    @relation(fields: [rutinaId], references: [id], onDelete: Cascade)
+  rutinaId    String
+  ejercicio   Ejercicio @relation(fields: [ejercicioId], references: [id], onDelete: Restrict)
+  ejercicioId String
+
+  @@unique([rutinaId, orden])
+  @@index([ejercicioId])
 }

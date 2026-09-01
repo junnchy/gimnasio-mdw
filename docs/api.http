@@ -1,0 +1,36 @@
+# Pruebas manuales de la API. Requiere la extensión REST Client de VS Code.
+@base = http://localhost:3000
+
+### listar planes → 200
+# @name listarPlanes
+GET {{base}}/api/planes?limite=50
+
+### límite inválido → 400
+GET {{base}}/api/planes?limite=0
+
+### crear plan inválido → 400
+POST {{base}}/api/planes
+Content-Type: application/json
+
+{
+  "nombre": "",
+  "precio": -1,
+  "duracionDias": 0
+}
+
+### crear plan válido → 201
+# TODO (clase 6): requiere sesión ADMIN.
+POST {{base}}/api/planes
+Content-Type: application/json
+
+{
+  "nombre": "Mensual",
+  "descripcion": "Acceso libre durante 30 días",
+  "precio": 25000,
+  "duracionDias": 30
+}
+
+### futuros flujos del contrato
+# POST {{base}}/api/visitas/escaneos
+# POST {{base}}/api/reservas
+# POST {{base}}/api/reservas/{{reservaId}}/cancelacion
