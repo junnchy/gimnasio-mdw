@@ -20,6 +20,7 @@ Content-Type: application/json
 
 ### crear plan válido → 201
 # TODO (clase 6): requiere sesión ADMIN.
+# @name crearPlan
 POST {{base}}/api/planes
 Content-Type: application/json
 
@@ -30,7 +31,90 @@ Content-Type: application/json
   "duracionDias": 30
 }
 
-### futuros flujos del contrato
-# POST {{base}}/api/visitas/escaneos
-# POST {{base}}/api/reservas
-# POST {{base}}/api/reservas/{{reservaId}}/cancelacion
+### editar el plan recién creado → 200
+PATCH {{base}}/api/planes/{{crearPlan.response.body.id}}
+Content-Type: application/json
+
+{ "precio": 26000 }
+
+### listar clases → 200
+# @name clases
+GET {{base}}/api/clases
+
+### crear clase inválida → 400
+POST {{base}}/api/clases
+Content-Type: application/json
+
+{ "nombre": "", "cupoMaximo": 0, "inicio": "no-es-fecha", "duracionMin": 0 }
+
+### crear clase → 201
+# TODO (clase 6): la clase queda asignada al profesor de ejemplo.
+# @name crearClase
+POST {{base}}/api/clases
+Content-Type: application/json
+
+{ "nombre": "Yoga", "cupoMaximo": 15, "inicio": "2026-12-10T18:00:00.000Z", "duracionMin": 60, "sala": "Sala 1" }
+
+### reservar una clase → 201
+# @name reserva
+POST {{base}}/api/reservas
+Content-Type: application/json
+
+{ "claseId": "{{clases.response.body.$[0].id}}" }
+
+### cancelar la reserva → 200
+POST {{base}}/api/reservas/{{reserva.response.body.id}}/cancelacion
+
+### marcar asistencia → 200
+POST {{base}}/api/reservas/{{reserva.response.body.id}}/asistencia
+
+### mis visitas → 200
+GET {{base}}/api/visitas
+
+### escaneo QR inválido → 400
+POST {{base}}/api/visitas/escaneos
+Content-Type: application/json
+
+{ "qrToken": "corto" }
+
+### escaneo QR → 201
+POST {{base}}/api/visitas/escaneos
+Content-Type: application/json
+
+{ "qrToken": "qr-fijo-de-la-puerta" }
+
+### mi membresía → 200
+GET {{base}}/api/membresias/mia
+
+### crear membresía inválida → 400
+POST {{base}}/api/membresias
+Content-Type: application/json
+
+{ "socioId": "", "planId": "", "fechaInicio": "2026-02-01", "fechaFin": "2026-01-01" }
+
+### registrar pago inválido → 400
+POST {{base}}/api/pagos
+Content-Type: application/json
+
+{ "membresiaId": "", "monto": -1, "fecha": "no-es-fecha", "medio": "OTRO" }
+
+### mis rutinas → 200
+GET {{base}}/api/rutinas/mia
+
+### crear rutina inválida → 400
+POST {{base}}/api/rutinas
+Content-Type: application/json
+
+{ "nombre": "", "socioId": "" }
+
+### cerrar visitas olvidadas → 200
+POST {{base}}/api/visitas/cierre-diario
+
+### catálogo de ejercicios → 200
+GET {{base}}/api/ejercicios
+
+### crear ejercicio inválido → 400
+POST {{base}}/api/ejercicios
+Content-Type: application/json
+
+{ "nombre": "", "grupoMuscular": "" }

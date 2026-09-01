@@ -70,3 +70,11 @@ en menos de 60 segundos.
 
 `409` representa una posición repetida dentro de la rutina o un ejercicio ya
 existente en el catálogo.
+
+## Qué está implementado hoy
+
+| Clase | Qué está listo |
+|---|---|
+| 4 | Todos los endpoints del contrato, sus módulos en `lib/db/`, validación Zod y pruebas en `docs/api.http`. Hasta Auth.js se usa el usuario de ejemplo del seed, igual que el `TODO (clase 6)` de la referencia. |
+| 5 | Pendientes las reglas de conflicto: membresía activa, cupo, solapamiento, QR válido/debounce, renovación atómica del pago y clase ya dictada. |
+| 6 | Pendiente reemplazar el usuario de ejemplo por Auth.js y hacer efectivos `401`/`403`. |

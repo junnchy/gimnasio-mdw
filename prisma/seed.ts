@@ -16,19 +16,19 @@ async function main() {
   const admin = await prisma.user.upsert({
     where: { email: "admin@ejemplo.com" },
     update: {},
-    create: { email: "admin@ejemplo.com", nombre: "Admin", rol: Rol.ADMIN },
+    create: { id: "admin-de-ejemplo", email: "admin@ejemplo.com", nombre: "Admin", rol: Rol.ADMIN },
   });
 
   const profe = await prisma.user.upsert({
     where: { email: "profe@ejemplo.com" },
     update: {},
-    create: { email: "profe@ejemplo.com", nombre: "Profe", rol: Rol.PROFESOR },
+    create: { id: "profesor-de-ejemplo", email: "profe@ejemplo.com", nombre: "Profe", rol: Rol.PROFESOR },
   });
 
   const socio = await prisma.user.upsert({
     where: { email: "socio@ejemplo.com" },
     update: {},
-    create: { email: "socio@ejemplo.com", nombre: "Socio", rol: Rol.SOCIO },
+    create: { id: "socio-de-ejemplo", email: "socio@ejemplo.com", nombre: "Socio", rol: Rol.SOCIO },
   });
 
   // Socios para probar los caminos de error: el profe pide que el seed deje
