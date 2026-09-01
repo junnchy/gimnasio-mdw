@@ -6,7 +6,7 @@ const LIMITE_POR_DEFECTO = 50;
 export async function listarPlanes(limite: number = LIMITE_POR_DEFECTO) {
   return prisma.plan.findMany({
     take: limite,
-    orderBy: { creadoEn: "desc" },
+    orderBy: { createdAt: "desc" },
   });
 }
 

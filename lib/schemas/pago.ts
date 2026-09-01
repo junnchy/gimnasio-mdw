@@ -3,7 +3,8 @@ import { id, medioPago, estadoPago } from "./_common";
 
 export const pagoSchema = z.object({
   membresiaId: id,
-  monto: z.number().positive(),
+  // Plata: ver `planSchema.precio` — mismo criterio que el `Decimal(10,2)`.
+  monto: z.number().positive().multipleOf(0.01),
   fecha: z.coerce.date(),
   medio: medioPago,
   estado: estadoPago.default("PENDIENTE"),

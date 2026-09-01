@@ -1,10 +1,34 @@
-// Modelo del gimnasio. Cada entidad sale de docs/spec.md.
+// Modelo de datos del gimnasio (spec §3).
+//
+// Los nombres de campos coinciden 1:1 con los schemas de `lib/schemas/`
+// (los tipos se derivan con `z.infer` y nunca se escriben a mano en paralelo).
+//
+// Convenciones del equipo:
+// - `Socio` y `Profesor` son un mismo `User` diferenciado por su `rol`.
+// - La asistencia a clase se modela como el campo `presente` de `Reserva`
+//   (no hay entidad Asistencia; se fusionó en la spec).
+// - Estados con enums, nunca strings sueltos.
+// - Auditoría pareja: `createdAt`/`updatedAt` en todos los modelos.
+//
+// Después de cualquier cambio en este archivo:
+//   npx prisma migrate dev --name <descripcion-del-cambio>
+//
+// ÍNDICES ÚNICOS PARCIALES: Prisma no los expresa, así que viven como SQL a
+// mano en la migración `modelo_dominio_gym`:
+//   Reserva: (socioId, claseId) WHERE estado = 'CONFIRMADA'
+//   Visita : (socioId)          WHERE estado = 'ABIERTA'
+// No borrarlos al regenerar: son reglas de negocio de la spec §6.
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
+
+  // Vercel es serverless, así que hacen falta dos conexiones distintas:
+  //   DATABASE_URL → el pooler, que la app usa en cada request
+  //   DIRECT_URL   → la conexión directa, que usan las migraciones
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
@@ -16,8 +40,15 @@ enum Rol {
 }
 
 enum EstadoMembresia {
+  // Qué SÍ se guarda: son hechos que alguien realizó.
+  //   ACTIVA    → resultado de registrar un pago aprobado (H7)
+  //   CANCELADA → acto de cancelación
+  // VENCIDA NO está acá: la membresía se vence sola cuando `fechaFin` pasa a
+  // ser anterior a hoy (spec §6, ADR 0002), sin que nadie toque el sistema.
+  // Guardarlo obligaría a un proceso que recorra la tabla corrigiéndolo, y
+  // hasta que corra, la columna estaría mintiendo. Se calcula al leer con
+  // `estadoMembresiaVista()` en `lib/membresia.ts`.
   ACTIVA
-  VENCIDA
   CANCELADA
 }
 
@@ -43,124 +74,105 @@ enum EstadoVisita {
   INCOMPLETA
 }
 
-model Usuario {
+model User {
   id        String   @id @default(cuid())
   email     String   @unique
   nombre    String
   rol       Rol      @default(SOCIO)
-  creadoEn  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  membresias       Membresia[]
-  clasesDictadas   Clase[]      @relation("ProfesorDeClase")
-  reservas         Reserva[]
-  visitas          Visita[]
-  rutinasCreadas   Rutina[]     @relation("ProfesorDeRutina")
-  rutinasAsignadas Rutina[]     @relation("SocioDeRutina")
+  // Como SOCIO
+  membresias Membresia[]
+  rutinas    Rutina[]     @relation("RutinaSocio")
+  reservas   Reserva[]
+  visitas    Visita[]
+
+  // Como PROFESOR
+  rutinasCreadas Rutina[] @relation("RutinaProfesor")
+  clases         Clase[]
+
+  // Un mismo User no se borra si tiene historial (membresías, visitas,
+  // reservas, rutinas, clases): Restrict protege los datos de negocio.
 }
 
 model Plan {
-  id           String       @id @default(cuid())
-  nombre       String       @unique
+  id           String   @id @default(cuid())
+  // Único: dos planes con el mismo nombre es un error de carga, y de paso
+  // permite el `upsert` por nombre en el seed.
+  nombre       String   @unique
   descripcion  String?
-  precio       Decimal      @db.Decimal(12, 2)
+  // Plata: Decimal (Postgres `numeric`), nunca Float. Precisión 2 decimales
+  // (@db.Decimal(10,2)); en Zod se valida con `.multipleOf(0.01)` para que
+  // contrato y base den el mismo resultado (regla de la clase 3).
+  precio       Decimal  @db.Decimal(10, 2)
   duracionDias Int
-  activo       Boolean      @default(true)
-  creadoEn     DateTime     @default(now())
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   membresias Membresia[]
+
+  // Restrict: no se borra un plan que ya tiene membresías (historial de pagos).
 }
 
 model Membresia {
-  id          String           @id @default(cuid())
+  id          String          @id @default(cuid())
+  socioId     String
+  planId      String
   fechaInicio DateTime
   fechaFin    DateTime
-  estado      EstadoMembresia  @default(ACTIVA)
-  creadaEn    DateTime         @default(now())
+  estado      EstadoMembresia @default(ACTIVA)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
-  socio   Usuario @relation(fields: [socioId], references: [id], onDelete: Restrict)
-  socioId String
-  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
-  planId  String
-  pagos   Pago[]
+  socio User  @relation(fields: [socioId], references: [id], onDelete: Restrict)
+  plan  Plan  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  pagos Pago[]
 
-  @@index([socioId, fechaFin])
+  // Regla H8 (la base no puede expresarla): si un socio llega a tener varias
+  // membresías vigentes a la vez, gana la de `fechaFin` más lejana. Todas las
+  // pantallas la eligen con ese criterio, no a criterio de cada una.
+  @@index([socioId])
   @@index([planId])
+  // Membresías que vencen (fechaFin en el pasado): la consulta que calcula
+  // el estado VENCIDA de la H8 filtra por esta columna.
+  @@index([fechaFin])
 }
 
 model Pago {
-  id          String      @id @default(cuid())
-  monto       Decimal     @db.Decimal(12, 2)
+  id          String     @id @default(cuid())
+  membresiaId String
+  monto       Decimal    @db.Decimal(10, 2)
   fecha       DateTime
   medio       MedioPago
-  estado      EstadoPago  @default(PENDIENTE)
+  estado      EstadoPago @default(PENDIENTE)
+  // Referencia externa (ej. el id de la transacción en Mercado Pago).
   refExterna  String?
-  creadoEn    DateTime    @default(now())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  membresia   Membresia  @relation(fields: [membresiaId], references: [id], onDelete: Restrict)
-  membresiaId String
+  membresia Membresia @relation(fields: [membresiaId], references: [id], onDelete: Restrict)
 
+  // Restrict: un pago es plata, no se borra en cascada con nada.
   @@index([membresiaId])
 }
 
-model Clase {
-  id          String   @id @default(cuid())
-  nombre      String
-  cupoMaximo  Int
-  inicio      DateTime
-  duracionMin Int
-  sala        String?
-  creadaEn    DateTime @default(now())
-
-  profesor   Usuario  @relation("ProfesorDeClase", fields: [profesorId], references: [id], onDelete: Restrict)
-  profesorId String
-  reservas   Reserva[]
-
-  @@index([profesorId, inicio])
-  @@index([inicio])
-}
-
-model Reserva {
-  id        String        @id @default(cuid())
-  estado    EstadoReserva @default(CONFIRMADA)
-  presente  Boolean       @default(false)
-  creadaEn  DateTime      @default(now())
-
-  socio   Usuario @relation(fields: [socioId], references: [id], onDelete: Restrict)
-  socioId String
-  clase   Clase   @relation(fields: [claseId], references: [id], onDelete: Restrict)
-  claseId String
-
-  @@unique([socioId, claseId])
-  @@index([claseId, estado])
-  @@index([socioId, estado])
-}
-
-model Visita {
-  id          String        @id @default(cuid())
-  ingresoAt   DateTime
-  egresoAt    DateTime?
-  estado      EstadoVisita  @default(ABIERTA)
-  duracionMin Int?
-  creadaEn    DateTime      @default(now())
-
-  socio   Usuario @relation(fields: [socioId], references: [id], onDelete: Restrict)
-  socioId String
-
-  @@index([socioId, estado])
-  @@index([ingresoAt])
-}
-
 model Rutina {
-  id            String   @id @default(cuid())
-  nombre        String
-  objetivo      String?
-  creadaEn      DateTime @default(now())
-  actualizadaEn DateTime @updatedAt
-
-  profesor   Usuario @relation("ProfesorDeRutina", fields: [profesorId], references: [id], onDelete: Restrict)
+  id         String   @id @default(cuid())
+  nombre     String
+  objetivo   String?
   profesorId String
-  socio      Usuario @relation("SocioDeRutina", fields: [socioId], references: [id], onDelete: Restrict)
   socioId    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Dos relaciones al mismo modelo (User): Prisma exige nombres distintos.
+  // La base no puede garantizar los roles: `profesorId` tiene que apuntar a
+  // un User rol PROFESOR y `socioId` a uno rol SOCIO. Se valida en
+  // `lib/db/rutinas.ts` al crear/editar, no queda en la UI.
+  profesor   User              @relation("RutinaProfesor", fields: [profesorId], references: [id], onDelete: Restrict)
+  socio      User              @relation("RutinaSocio", fields: [socioId], references: [id], onDelete: Restrict)
   ejercicios RutinaEjercicio[]
 
   @@index([profesorId])
@@ -168,30 +180,111 @@ model Rutina {
 }
 
 model Ejercicio {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   nombre        String
   grupoMuscular String
   descripcion   String?
   imagenUrl     String?
-  creadoEn      DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   rutinas RutinaEjercicio[]
 
-  @@unique([nombre, grupoMuscular])
+  // El catálogo se filtra por grupo muscular: índice para no barrer la tabla.
+  @@index([grupoMuscular])
 }
 
+// Entidad puente de la relación N-N Rutina <-> Ejercicio.
+// Lleva los atributos propios de "un ejercicio dentro de una rutina".
 model RutinaEjercicio {
-  id           String @id @default(cuid())
+  id           String   @id @default(cuid())
+  rutinaId     String
+  ejercicioId  String
   series       Int
   repeticiones Int
   descansoSeg  Int
   orden        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  rutina      Rutina    @relation(fields: [rutinaId], references: [id], onDelete: Cascade)
-  rutinaId    String
-  ejercicio   Ejercicio @relation(fields: [ejercicioId], references: [id], onDelete: Restrict)
-  ejercicioId String
+  rutina    Rutina    @relation(fields: [rutinaId], references: [id], onDelete: Cascade)
+  ejercicio Ejercicio @relation(fields: [ejercicioId], references: [id], onDelete: Restrict)
 
-  @@unique([rutinaId, orden])
+  // Un mismo ejercicio no se repite dos veces en la misma rutina.
+  @@unique([rutinaId, ejercicioId])
   @@index([ejercicioId])
+}
+
+model Clase {
+  id          String   @id @default(cuid())
+  nombre      String
+  profesorId  String
+  cupoMaximo  Int
+  inicio      DateTime
+  duracionMin Int
+  sala        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profesor User      @relation(fields: [profesorId], references: [id], onDelete: Restrict)
+  reservas Reserva[]
+
+  @@index([profesorId])
+  // El calendario se consulta por inicio (franja horaria / día).
+  @@index([inicio])
+}
+
+model Reserva {
+  id        String        @id @default(cuid())
+  socioId   String
+  claseId   String
+  estado    EstadoReserva @default(CONFIRMADA)
+  // La asistencia de la H6 se marca acá (spec: no hay entidad Asistencia).
+  presente  Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  socio User  @relation(fields: [socioId], references: [id], onDelete: Restrict)
+  clase Clase @relation(fields: [claseId], references: [id], onDelete: Restrict)
+
+  // Regla H4 (spec §6): "un socio no puede tener dos reservas de la misma
+  // clase", PERO solo mientras está CONFIRMADA — una CANCELADA libera cupo y
+  // permite volver a reservar (sin ese matiz, un @@unique simple rompería el
+  // flujo de cancelación). Por eso vive como índice único parcial en la
+  // migración, no como @@unique:
+  //   CREATE UNIQUE INDEX "Reserva_socio_clase_confirmada_key"
+  //     ON "Reserva"("socioId","claseId") WHERE "estado" = 'CONFIRMADA';
+  //
+  // TODO (H4): la spec §6 también dice "un socio no puede tener dos reservas
+  // en el mismo horario". El índice de arriba cubre "la misma clase", pero si
+  // dos clases se superponen, el socio podría anotarse en las dos. La base no
+  // puede expresarlo (hay que comparar Clase.inicio + duracionMin), así que
+  // va como validación en `lib/db/reservas.ts` al implementar la H4.
+  @@index([socioId])
+  @@index([claseId])
+}
+
+model Visita {
+  id        String       @id @default(cuid())
+  socioId   String
+  ingresoAt DateTime
+  egresoAt  DateTime?
+  estado    EstadoVisita
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  socio User @relation(fields: [socioId], references: [id], onDelete: Restrict)
+
+  // Regla spec §6: "un socio no puede tener más de una visita ABIERTA".
+  // Índice único parcial (SQL a mano en la migración):
+  //   CREATE UNIQUE INDEX "Visita_socio_abierta_key"
+  //     ON "Visita"("socioId") WHERE "estado" = 'ABIERTA';
+  //
+  // La duración (egresoAt - ingresoAt) NO se guarda: se calcula al leer con
+  // `calcularDuracionMin()` en `lib/visita.ts` (ADR 0003). Si alguien
+  // corrige el egreso a mano, una duración guardada quedaría mintiendo — el
+  // mismo problema que llevó a calcular VENCIDA en la membresía.
+  @@index([socioId, estado])
+  // Reportes de ocupación por franja horaria (H3, flujo principal punto 6).
+  @@index([ingresoAt])
 }
