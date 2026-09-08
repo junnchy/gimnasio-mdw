@@ -13,7 +13,7 @@ import { PrismaClient, Rol, EstadoMembresia, EstadoVisita } from "@prisma/client
 const prisma = new PrismaClient();
 
 async function main() {
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: "admin@ejemplo.com" },
     update: {},
     create: { email: "admin@ejemplo.com", nombre: "Admin", rol: Rol.ADMIN },

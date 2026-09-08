@@ -3,6 +3,8 @@ import { z } from "zod";
 // Identificador (Prisma usa cuid por defecto).
 export const id = z.string().min(1, "id requerido");
 
+export const limiteLista = z.coerce.number().int().min(1).max(100).default(50);
+
 // Uniones literales para estados: NUNCA strings sueltos (regla de la cátedra).
 export const rolUsuario = z.enum(["ADMIN", "PROFESOR", "SOCIO"]);
 export type RolUsuario = z.infer<typeof rolUsuario>;

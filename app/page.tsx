@@ -11,6 +11,10 @@ export default function Home() {
       <p className="mt-2 text-sm opacity-70">
         Gestión de socios, cuotas, clases y control de acceso por QR.
       </p>
+      <p className="mt-8 text-sm opacity-70">
+        El contrato y las pruebas manuales están en <code>docs/api.md</code> y{" "}
+        <code>docs/api.http</code>.
+      </p>
     </main>
   );
 }

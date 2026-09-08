@@ -1,0 +1,160 @@
+# Pruebas manuales de la API. Requiere la extensión REST Client de VS Code.
+@base = http://localhost:3000
+# @cronSecret = completar-con-CRON_SECRET
+
+### listar planes → 200
+# @name listarPlanes
+GET {{base}}/api/planes?limite=50
+
+### límite inválido → 400
+GET {{base}}/api/planes?limite=0
+
+### crear plan inválido → 400
+POST {{base}}/api/planes
+Content-Type: application/json
+
+{
+  "nombre": "",
+  "precio": -1,
+  "duracionDias": 0
+}
+
+### body ausente → 400
+POST {{base}}/api/planes
+
+### crear el mismo plan otra vez → 409
+POST {{base}}/api/planes
+Content-Type: application/json
+
+{ "nombre": "Mensual", "precio": 25000, "duracionDias": 30 }
+
+### crear plan válido → 201
+# TODO (clase 6): requiere sesión ADMIN.
+# @name crearPlan
+POST {{base}}/api/planes
+Content-Type: application/json
+
+{
+  "nombre": "Mensual",
+  "descripcion": "Acceso libre durante 30 días",
+  "precio": 25000,
+  "duracionDias": 30
+}
+
+### editar el plan recién creado → 200
+PATCH {{base}}/api/planes/{{crearPlan.response.body.id}}
+Content-Type: application/json
+
+{ "precio": 26000 }
+
+### listar clases → 200
+# @name clases
+GET {{base}}/api/clases
+
+### crear clase inválida → 400
+POST {{base}}/api/clases
+Content-Type: application/json
+
+{ "nombre": "", "cupoMaximo": 0, "inicio": "no-es-fecha", "duracionMin": 0 }
+
+### crear clase → 201
+# TODO (clase 6): la clase queda asignada al profesor de ejemplo.
+# @name crearClase
+POST {{base}}/api/clases
+Content-Type: application/json
+
+{ "nombre": "Yoga", "cupoMaximo": 15, "inicio": "2026-12-10T18:00:00.000Z", "duracionMin": 60, "sala": "Sala 1" }
+
+### reservar una clase → 201
+# @name reserva
+POST {{base}}/api/reservas
+Content-Type: application/json
+
+{ "claseId": "{{clases.response.body.$[0].id}}" }
+
+### reservar la misma clase otra vez → 409
+POST {{base}}/api/reservas
+Content-Type: application/json
+
+{ "claseId": "{{clases.response.body.$[0].id}}" }
+
+### cancelar la reserva → 200
+POST {{base}}/api/reservas/{{reserva.response.body.id}}/cancelacion
+
+### marcar asistencia → 200
+POST {{base}}/api/reservas/{{reserva.response.body.id}}/asistencia
+
+### mis visitas → 200
+GET {{base}}/api/visitas
+
+### escaneo QR inválido → 400
+POST {{base}}/api/visitas/escaneos
+Content-Type: application/json
+
+{ "qrToken": "corto" }
+
+### escaneo QR → 201
+POST {{base}}/api/visitas/escaneos
+Content-Type: application/json
+
+{ "qrToken": "qr-fijo-de-la-puerta" }
+
+### mi membresía → 200
+GET {{base}}/api/membresias/mia
+
+### crear membresía inválida → 400
+POST {{base}}/api/membresias
+Content-Type: application/json
+
+{ "socioId": "", "planId": "", "fechaInicio": "2026-02-01", "fechaFin": "2026-01-01" }
+
+### registrar pago inválido → 400
+POST {{base}}/api/pagos
+Content-Type: application/json
+
+{ "membresiaId": "", "monto": -1, "fecha": "no-es-fecha", "medio": "OTRO" }
+
+### mis rutinas → 200
+# @name misRutinas
+GET {{base}}/api/rutinas/mia
+
+### crear rutina inválida → 400
+POST {{base}}/api/rutinas
+Content-Type: application/json
+
+{ "nombre": "", "socioId": "" }
+
+### cerrar visitas sin secreto → 401
+# Requiere CRON_SECRET configurado en el entorno.
+POST {{base}}/api/visitas/cierre-diario
+# Para el camino feliz, descomentar la línea siguiente tras definir @cronSecret.
+# x-cron-secret: {{cronSecret}}
+
+### catálogo de ejercicios → 200
+# @name ejercicios
+GET {{base}}/api/ejercicios
+
+### agregar ejercicio a una rutina → 201
+# @name agregarEjercicio
+POST {{base}}/api/rutinas/{{misRutinas.response.body.$[0].id}}/ejercicios
+Content-Type: application/json
+
+{ "ejercicioId": "{{ejercicios.response.body.$[0].id}}", "series": 3, "repeticiones": 10, "descansoSeg": 60, "orden": 3 }
+
+### agregar el mismo ejercicio otra vez → 409
+POST {{base}}/api/rutinas/{{misRutinas.response.body.$[0].id}}/ejercicios
+Content-Type: application/json
+
+{ "ejercicioId": "{{ejercicios.response.body.$[0].id}}", "series": 3, "repeticiones": 10, "descansoSeg": 60, "orden": 3 }
+
+### crear ejercicio inválido → 400
+POST {{base}}/api/ejercicios
+Content-Type: application/json
+
+{ "nombre": "", "grupoMuscular": "" }
+
+### crear ejercicio duplicado → 409
+POST {{base}}/api/ejercicios
+Content-Type: application/json
+
+{ "nombre": "Sentadilla", "grupoMuscular": "Piernas" }
