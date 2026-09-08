@@ -3,6 +3,7 @@ import { actualizarClase, obtenerClase } from "@/lib/db/clases";
 import { id } from "@/lib/schemas/_common";
 import { claseSchema } from "@/lib/schemas/clase";
 import { usuarioDeEjemplo } from "@/lib/usuarioDeEjemplo";
+import { leerBody } from "@/lib/utils";
 
 type Contexto = { params: Promise<{ id: string }> };
 
@@ -15,7 +16,8 @@ export async function GET(_request: Request, { params }: Contexto) {
 
 export async function PATCH(request: Request, { params }: Contexto) {
   const { id: claseId } = await params;
-  const resultado = claseSchema.omit({ profesorId: true }).partial().safeParse(await request.json() as unknown);
+  if (!id.safeParse(claseId).success) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+  const resultado = claseSchema.omit({ profesorId: true }).partial().safeParse(await leerBody(request));
   if (!resultado.success) return NextResponse.json({ error: "Datos inválidos", detalles: resultado.error.flatten() }, { status: 400 });
   // TODO (clase 6): verificar profesor de sesión.
   const clase = await actualizarClase(claseId, resultado.data, await usuarioDeEjemplo("PROFESOR"));

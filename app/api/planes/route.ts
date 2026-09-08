@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { crearPlan, listarPlanes } from "@/lib/db/planes";
+import { esDuplicado } from "@/lib/db/errores";
 import { listarPlanesSchema, planSchema } from "@/lib/schemas/plan";
+import { leerBody } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const resultado = listarPlanesSchema.safeParse({
@@ -18,8 +20,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
-  const body: unknown = await request.json();
-  const resultado = planSchema.safeParse(body);
+  const resultado = planSchema.safeParse(await leerBody(request));
 
   if (!resultado.success) {
     return NextResponse.json(
@@ -29,5 +30,10 @@ export async function POST(request: Request) {
   }
 
   // TODO (clase 6): exigir sesión con rol ADMIN.
-  return NextResponse.json(await crearPlan(resultado.data), { status: 201 });
+  try {
+    return NextResponse.json(await crearPlan(resultado.data), { status: 201 });
+  } catch (error) {
+    if (esDuplicado(error)) return NextResponse.json({ error: "Ya existe un plan con ese nombre" }, { status: 409 });
+    throw error;
+  }
 }

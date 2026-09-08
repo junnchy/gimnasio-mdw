@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { crearPago } from "@/lib/db/pagos";
 import { pagoSchema } from "@/lib/schemas/pago";
+import { leerBody } from "@/lib/utils";
 
 export async function POST(request: Request) {
-  const resultado = pagoSchema.safeParse(await request.json() as unknown);
+  const resultado = pagoSchema.omit({ estado: true }).safeParse(await leerBody(request));
   if (!resultado.success) return NextResponse.json({ error: "Datos inválidos", detalles: resultado.error.flatten() }, { status: 400 });
   // TODO (clase 5): con pago APROBADO, renovar membresía en la misma transacción.
   // TODO (clase 6): exigir ADMIN.

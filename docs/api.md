@@ -51,7 +51,7 @@ una confirmada de una clase ya dictada.
 |---|---|---|---|
 | `GET /api/visitas` | Lista visitas propias | Socio | 401 |
 | `POST /api/visitas/escaneos` | Abre o cierra la visita según exista una abierta | Socio | 400, 401, 409 |
-| `POST /api/visitas/cierre-diario` | Marca incompletas las visitas abiertas del día | Admin o proceso programado | 401, 403 |
+| `POST /api/visitas/cierre-diario` | Marca incompletas las visitas abiertas del día | Proceso programado con `x-cron-secret` | 401 |
 
 El escaneo recibe el token QR, no el `socioId`: el socio siempre sale de la
 sesión. Devuelve `409` para membresía vencida, QR inválido o un segundo escaneo
@@ -68,8 +68,9 @@ en menos de 60 segundos.
 | `GET /api/ejercicios` | Lista el catálogo de ejercicios | Profesor | 401, 403 |
 | `POST /api/ejercicios` | Agrega un ejercicio al catálogo | Profesor | 400, 401, 403, 409 |
 
-`409` representa una posición repetida dentro de la rutina o un ejercicio ya
-existente en el catálogo.
+`409` representa un ejercicio ya existente en la rutina o un nombre ya existente
+en el catálogo. La posición (`orden`) se conserva como dato de presentación y no
+es una restricción de unicidad.
 
 ## Qué está implementado hoy
 
