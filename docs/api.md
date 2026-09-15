@@ -72,10 +72,85 @@ en menos de 60 segundos.
 en el catálogo. La posición (`orden`) se conserva como dato de presentación y no
 es una restricción de unicidad.
 
+## Catálogo de errores
+
+Cada fila sale de un criterio de aceptación de `docs/spec.md`. La columna
+**Capa** dice quién lo detecta, que es lo que determina el código:
+
+- **Zod** (`route.ts`): la estructura del request → `400`. El cliente lo arregla mandando otros datos.
+- **Regla** (`lib/*.ts`, funciones puras): el estado del sistema no lo permite → `409`.
+- **Base** (constraints de Prisma): integridad, y carrera entre dos requests → `404`/`409`.
+- **Sesión** (clase 6): quién llama → `401`/`403`.
+
+El `409` devuelve `{ error, motivos: [{ codigo, mensaje, datos }] }`: el mensaje
+es para la persona y `motivos` para el front, que así no tiene que parsear texto.
+Cuando fallan varias reglas a la vez, vienen todas.
+
+### Visitas por QR
+
+| Operación | Situación | Capa | Status | Mensaje |
+|---|---|---|---|---|
+| `POST /api/visitas/escaneos` | Falta el `qrToken` o tiene menos de 10 caracteres | Zod | 400 | Datos inválidos |
+| `POST /api/visitas/escaneos` | H1: el QR no es el de la puerta | Regla `QR_INVALIDO` | 409 | QR inválido o vencido. |
+| `POST /api/visitas/escaneos` | H1: la membresía del socio está VENCIDA o CANCELADA | Regla `MEMBRESIA_INACTIVA` | 409 | Membresía vencida: no se puede registrar el ingreso. |
+| `POST /api/visitas/escaneos` | H2: segundo escaneo antes de los 60 segundos | Regla `ESCANEO_DUPLICADO` | 409 | Escaneo repetido: esperá unos segundos. |
+| `POST /api/visitas/escaneos` | Dos escaneos simultáneos pasan el debounce y chocan con el único parcial | Base `VISITA_ABIERTA_DUPLICADA` | 409 | Ya tenés una visita abierta. |
+| `POST /api/visitas/cierre-diario` | H3: falta o no coincide `x-cron-secret` | Sesión | 401 | No autorizado |
+
+### Reservas
+
+| Operación | Situación | Capa | Status | Mensaje |
+|---|---|---|---|---|
+| `POST /api/reservas` | Falta `claseId` | Zod | 400 | Datos inválidos |
+| `POST /api/reservas` | La clase no existe | Base | 404 | Clase no encontrada |
+| `POST /api/reservas` | H4: la membresía no está ACTIVA | Regla `MEMBRESIA_INACTIVA` | 409 | Tu membresía no está activa: no podés reservar clases. |
+| `POST /api/reservas` | H4: la clase no tiene cupo | Regla `SIN_CUPO` | 409 | Sin cupo disponible. |
+| `POST /api/reservas` | H4: ya tiene una reserva en el mismo horario | Regla `HORARIO_SOLAPADO` | 409 | Ya tenés una reserva en ese horario: `<clases>`. |
+| `POST /api/reservas` | Derivado de H5: la clase ya empezó | Regla `CLASE_YA_INICIADA` | 409 | La clase ya empezó: no se puede reservar. |
+| `POST /api/reservas` | Dos requests simultáneos para la misma clase | Base `RESERVA_DUPLICADA` | 409 | Ya tenés una reserva confirmada para esta clase. |
+| `POST /api/reservas/:id/cancelacion` | La reserva no existe, o es de otro socio | Base | 404 | Reserva no encontrada |
+| `POST /api/reservas/:id/cancelacion` | H5: la reserva ya está CANCELADA | Regla `RESERVA_NO_CONFIRMADA` | 409 | La reserva no está confirmada. |
+| `POST /api/reservas/:id/cancelacion` | H5: la clase ya empezó | Regla `CLASE_YA_INICIADA` | 409 | La clase ya empezó: no se puede cancelar. |
+| `POST /api/reservas/:id/asistencia` | La reserva no existe | Base | 404 | Reserva no encontrada |
+| `POST /api/reservas/:id/asistencia` | La reserva existe pero la clase es de otro profesor | Sesión | 403 | La clase no es tuya |
+| `POST /api/reservas/:id/asistencia` | H6: la reserva está CANCELADA | Regla `RESERVA_NO_CONFIRMADA` | 409 | No se puede marcar asistencia sobre una reserva cancelada. |
+| `POST /api/reservas/:id/asistencia` | H6: la clase todavía no terminó | Regla `CLASE_NO_DICTADA` | 409 | La clase todavía no terminó: no se puede marcar asistencia. |
+
+### Membresías y pagos
+
+| Operación | Situación | Capa | Status | Mensaje |
+|---|---|---|---|---|
+| `GET /api/membresias/mia` | H8: el socio no tiene ninguna membresía | Base | 404 | Membresía no encontrada |
+| `POST /api/membresias` | `fechaFin` anterior o igual a `fechaInicio` | Zod | 400 | Datos inválidos |
+| `POST /api/membresias` | El socio o el plan no existen | Base | 404 | Socio o plan no encontrado |
+| `POST /api/pagos` | `monto` negativo, `medio` fuera del enum o fecha inválida | Zod | 400 | Datos inválidos |
+| `POST /api/pagos` | La membresía no existe | Base | 404 | Membresía no encontrada |
+| `POST /api/pagos` | La membresía está CANCELADA (ADR 0002: cancelar es un hecho) | Regla `MEMBRESIA_CANCELADA` | 409 | La membresía está cancelada: hay que crear una nueva. |
+
+### Planes, clases, rutinas y ejercicios
+
+| Operación | Situación | Capa | Status | Mensaje |
+|---|---|---|---|---|
+| `POST /api/planes` | Nombre de plan repetido | Base | 409 | Ya existe un plan con ese nombre |
+| `PATCH /api/planes/:id` | El plan no existe | Base | 404 | No encontrado |
+| `GET` de cualquier listado | `?limite=` fuera de 1–100 | Zod | 400 | Parámetros inválidos |
+| `POST /api/ejercicios` | Nombre de ejercicio repetido | Base | 409 | Ya existe un ejercicio con ese nombre |
+| `POST /api/rutinas` | El socio no existe | Base | 404 | Socio no encontrado |
+| `POST /api/rutinas/:id/ejercicios` | El ejercicio ya está en la rutina | Base | 409 | El ejercicio ya está en esta rutina |
+| Cualquier operación | Falla inesperada del sistema | — | 500 | Error interno |
+
+**400 vs 409:** si el cliente lo arregla mandando otros datos, es 400; si primero
+tiene que cambiar el estado del sistema (pagar la cuota, que alguien libere un
+cupo, esperar que termine la clase), es 409.
+
+**404 vs 403:** una reserva de otro socio responde 404, no 403, para no revelar
+que el id existe. En cambio marcar asistencia sobre una reserva de la clase de
+otro profesor responde 403: el recurso es visible, lo que falta es el permiso.
+
 ## Qué está implementado hoy
 
 | Clase | Qué está listo |
 |---|---|
 | 4 | Todos los endpoints del contrato, sus módulos en `lib/db/`, validación Zod y pruebas en `docs/api.http`. Hasta Auth.js se usa el usuario de ejemplo del seed, igual que el `TODO (clase 6)` de la referencia. |
-| 5 | Pendientes las reglas de conflicto: membresía activa, cupo, solapamiento, QR válido/debounce, renovación atómica del pago y clase ya dictada. |
+| 5 | Reglas de conflicto implementadas como funciones puras en `lib/` (membresía activa, cupo, solapamiento, QR y debounce, cancelación fuera de término, clase ya dictada, renovación atómica del pago), con el catálogo de errores de arriba y su request en `docs/api.http`. |
 | 6 | Pendiente reemplazar el usuario de ejemplo por Auth.js y hacer efectivos `401`/`403`. |

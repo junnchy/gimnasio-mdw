@@ -158,3 +158,144 @@ POST {{base}}/api/ejercicios
 Content-Type: application/json
 
 { "nombre": "Sentadilla", "grupoMuscular": "Piernas" }
+
+###############################################################################
+# Clase 5 — caminos de conflicto del catálogo de errores
+#
+# `@qr` tiene que coincidir con QR_TOKEN de .env.local.
+# Los casos marcados (*) no se pueden disparar por HTTP hasta la clase 6,
+# porque `usuarioDeEjemplo` siempre actúa como el mismo socio: quedan cubiertos
+# por los tests unitarios de `lib/*.test.ts`.
+###############################################################################
+
+@qr = qr-puerta-principal-2026
+
+### escaneo con token corto → 400
+POST {{base}}/api/visitas/escaneos
+Content-Type: application/json
+
+{ "qrToken": "corto" }
+
+### escaneo con token que no es el de la puerta → 409 QR_INVALIDO
+POST {{base}}/api/visitas/escaneos
+Content-Type: application/json
+
+{ "qrToken": "token-que-no-es-el-de-la-puerta" }
+
+### escaneo válido → 201 (abre la visita) o 200 (la cierra, con duracionMin)
+# @name escaneo
+POST {{base}}/api/visitas/escaneos
+Content-Type: application/json
+
+{ "qrToken": "{{qr}}" }
+
+### repetir el escaneo dentro de los 60 segundos → 409 ESCANEO_DUPLICADO
+POST {{base}}/api/visitas/escaneos
+Content-Type: application/json
+
+{ "qrToken": "{{qr}}" }
+
+### (*) escaneo con membresía vencida → 409 MEMBRESIA_INACTIVA
+# Cubierto por lib/visita.test.ts → "rechaza con membresía vencida".
+
+### cierre diario sin el secreto → 401
+POST {{base}}/api/visitas/cierre-diario
+
+### mis visitas, con duración calculada → 200
+GET {{base}}/api/visitas
+
+### reserva sin claseId → 400
+POST {{base}}/api/reservas
+Content-Type: application/json
+
+{}
+
+### reserva de una clase que no existe → 404
+POST {{base}}/api/reservas
+Content-Type: application/json
+
+{ "claseId": "clase-que-no-existe" }
+
+### clase futura para reservar
+# @name claseFutura
+POST {{base}}/api/clases
+Content-Type: application/json
+
+{ "nombre": "Spinning tarde", "cupoMaximo": 2, "inicio": "2027-01-10T18:00:00.000Z", "duracionMin": 60, "sala": "Principal" }
+
+### reservar esa clase → 201
+# @name reserva
+POST {{base}}/api/reservas
+Content-Type: application/json
+
+{ "claseId": "{{claseFutura.response.body.id}}" }
+
+### reservarla otra vez → 409 (HORARIO_SOLAPADO y RESERVA_DUPLICADA)
+POST {{base}}/api/reservas
+Content-Type: application/json
+
+{ "claseId": "{{claseFutura.response.body.id}}" }
+
+### clase sin cupo (cupoMaximo 0) → sirve para el 409 SIN_CUPO
+# @name claseSinCupo
+POST {{base}}/api/clases
+Content-Type: application/json
+
+{ "nombre": "Funcional lleno", "cupoMaximo": 1, "inicio": "2027-01-11T18:00:00.000Z", "duracionMin": 45, "sala": "Sala 2" }
+
+### clase que ya pasó → sirve para CLASE_YA_INICIADA y para la asistencia
+# @name clasePasada
+POST {{base}}/api/clases
+Content-Type: application/json
+
+{ "nombre": "Spinning de ayer", "cupoMaximo": 10, "inicio": "2026-01-10T18:00:00.000Z", "duracionMin": 60, "sala": "Principal" }
+
+### reservar una clase que ya empezó → 409 CLASE_YA_INICIADA
+POST {{base}}/api/reservas
+Content-Type: application/json
+
+{ "claseId": "{{clasePasada.response.body.id}}" }
+
+### cancelar una reserva que no existe → 404
+POST {{base}}/api/reservas/reserva-que-no-existe/cancelacion
+
+### cancelar la reserva → 200
+POST {{base}}/api/reservas/{{reserva.response.body.id}}/cancelacion
+
+### cancelarla de nuevo → 409 RESERVA_NO_CONFIRMADA
+POST {{base}}/api/reservas/{{reserva.response.body.id}}/cancelacion
+
+### marcar asistencia de una clase que todavía no terminó → 409 CLASE_NO_DICTADA
+POST {{base}}/api/reservas/{{reserva.response.body.id}}/asistencia
+
+### (*) marcar asistencia sobre la clase de otro profesor → 403
+# Cubierto por la comparación con reserva.clase.profesorId; hasta la clase 6
+# `usuarioDeEjemplo` devuelve siempre el mismo profesor.
+
+### mi estado de cuota, con VENCIDA calculada → 200
+# @name miMembresia
+GET {{base}}/api/membresias/mia
+
+### pago con monto negativo → 400
+POST {{base}}/api/pagos
+Content-Type: application/json
+
+{ "membresiaId": "{{miMembresia.response.body.id}}", "monto": -1, "fecha": "2026-09-15T12:00:00.000Z", "medio": "EFECTIVO" }
+
+### pago sobre una membresía que no existe → 404
+POST {{base}}/api/pagos
+Content-Type: application/json
+
+{ "membresiaId": "membresia-que-no-existe", "monto": 30000, "fecha": "2026-09-15T12:00:00.000Z", "medio": "EFECTIVO" }
+
+### pago en EFECTIVO → 201, nace APROBADO y renueva la membresía (H7)
+POST {{base}}/api/pagos
+Content-Type: application/json
+
+{ "membresiaId": "{{miMembresia.response.body.id}}", "monto": 30000, "fecha": "2026-09-15T12:00:00.000Z", "medio": "EFECTIVO" }
+
+### pago por MP → 201, nace PENDIENTE y NO renueva (lo aprueba el webhook)
+POST {{base}}/api/pagos
+Content-Type: application/json
+
+{ "membresiaId": "{{miMembresia.response.body.id}}", "monto": 30000, "fecha": "2026-09-15T12:00:00.000Z", "medio": "MP", "refExterna": "mp-123" }
