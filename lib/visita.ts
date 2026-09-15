@@ -50,6 +50,12 @@ export function segundosDesde(momento: Date, ahora: Date): number {
  * `ultimoMovimientoAt` es el ingreso o el egreso más reciente del socio: el
  * debounce mira el último movimiento, no solo el ingreso, porque si no un
  * egreso seguido de un ingreso inmediato pasaría.
+ *
+ * La condición de membresía es de H1 (el INGRESO); H2 no le pone ninguna
+ * condición al egreso más allá del debounce. Por eso hace falta saber si el
+ * socio ya está adentro: a un socio cuya cuota venció mientras entrenaba hay
+ * que dejarlo salir, o su visita queda ABIERTA hasta que el cierre diario la
+ * fuerce a INCOMPLETA y se pierde la duración real.
  */
 export function puedeEscanear(
   datos: {
@@ -57,6 +63,7 @@ export function puedeEscanear(
     readonly token: string;
     readonly tokenEsperado: string;
     readonly ultimoMovimientoAt: Date | null;
+    readonly hayVisitaAbierta: boolean;
   },
   ahora: Date,
 ): Veredicto<CodigoRechazoEscaneo> {
@@ -66,7 +73,8 @@ export function puedeEscanear(
     motivos.push({ codigo: "QR_INVALIDO", mensaje: "QR inválido o vencido." });
   }
 
-  if (!membresiaHabilita(datos.estadoMembresia)) {
+  // Solo al ingresar (H1). Salir siempre se permite.
+  if (accionDeEscaneo(datos.hayVisitaAbierta) === "ABRIR" && !membresiaHabilita(datos.estadoMembresia)) {
     motivos.push({
       codigo: "MEMBRESIA_INACTIVA",
       mensaje: "Membresía vencida: no se puede registrar el ingreso.",

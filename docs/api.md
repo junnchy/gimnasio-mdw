@@ -92,7 +92,7 @@ Cuando fallan varias reglas a la vez, vienen todas.
 |---|---|---|---|---|
 | `POST /api/visitas/escaneos` | Falta el `qrToken` o tiene menos de 10 caracteres | Zod | 400 | Datos inválidos |
 | `POST /api/visitas/escaneos` | H1: el QR no es el de la puerta | Regla `QR_INVALIDO` | 409 | QR inválido o vencido. |
-| `POST /api/visitas/escaneos` | H1: la membresía del socio está VENCIDA o CANCELADA | Regla `MEMBRESIA_INACTIVA` | 409 | Membresía vencida: no se puede registrar el ingreso. |
+| `POST /api/visitas/escaneos` | H1: la membresía está VENCIDA o CANCELADA **y el escaneo es un ingreso**. Al egreso no aplica: H2 no le pone condición de membresía, y a un socio que está adentro hay que dejarlo salir | Regla `MEMBRESIA_INACTIVA` | 409 | Membresía vencida: no se puede registrar el ingreso. |
 | `POST /api/visitas/escaneos` | H2: segundo escaneo antes de los 60 segundos | Regla `ESCANEO_DUPLICADO` | 409 | Escaneo repetido: esperá unos segundos. |
 | `POST /api/visitas/escaneos` | Dos escaneos simultáneos pasan el debounce y chocan con el único parcial | Base `VISITA_ABIERTA_DUPLICADA` | 409 | Ya tenés una visita abierta. |
 | `POST /api/visitas/cierre-diario` | H3: falta o no coincide `x-cron-secret` | Sesión | 401 | No autorizado |

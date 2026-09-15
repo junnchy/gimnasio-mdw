@@ -72,34 +72,85 @@ describe("tokenQrValido (H1)", () => {
 });
 
 describe("puedeEscanear (H1 + H2)", () => {
-  const base = { estadoMembresia: "ACTIVA" as const, token: TOKEN, tokenEsperado: TOKEN };
+  // Ingreso: no hay visita abierta. Egreso: hay una abierta.
+  const ingreso = {
+    estadoMembresia: "ACTIVA" as const,
+    token: TOKEN,
+    tokenEsperado: TOKEN,
+    hayVisitaAbierta: false,
+  };
+  const egreso = { ...ingreso, hayVisitaAbierta: true };
 
-  it("acepta con membresía ACTIVA, QR válido y sin escaneo reciente", () => {
-    const resultado = puedeEscanear({ ...base, ultimoMovimientoAt: null }, ahora);
+  it("acepta el ingreso con membresía ACTIVA, QR válido y sin escaneo reciente", () => {
+    const resultado = puedeEscanear({ ...ingreso, ultimoMovimientoAt: null }, ahora);
     expect(resultado.ok).toBe(true);
   });
 
-  it("rechaza con membresía vencida", () => {
+  it("rechaza el ingreso con membresía vencida (H1)", () => {
     const resultado = puedeEscanear(
-      { ...base, estadoMembresia: "VENCIDA", ultimoMovimientoAt: null },
+      { ...ingreso, estadoMembresia: "VENCIDA", ultimoMovimientoAt: null },
       ahora,
     );
     expect(resultado.motivos.map((m) => m.codigo)).toEqual(["MEMBRESIA_INACTIVA"]);
   });
 
+  it("deja SALIR aunque la membresía haya vencido mientras entrenaba (H2 no pide membresía)", () => {
+    const resultado = puedeEscanear(
+      {
+        ...egreso,
+        estadoMembresia: "VENCIDA",
+        ultimoMovimientoAt: new Date("2026-09-15T20:00:00Z"),
+      },
+      ahora,
+    );
+    expect(resultado.ok).toBe(true);
+  });
+
+  it("deja salir también con la membresía cancelada: si no, la visita queda ABIERTA", () => {
+    const resultado = puedeEscanear(
+      {
+        ...egreso,
+        estadoMembresia: "CANCELADA",
+        ultimoMovimientoAt: new Date("2026-09-15T20:00:00Z"),
+      },
+      ahora,
+    );
+    expect(resultado.ok).toBe(true);
+  });
+
+  it("el QR inválido sí corta el egreso: el token se valida en los dos sentidos", () => {
+    const resultado = puedeEscanear(
+      {
+        ...egreso,
+        token: "otro-token",
+        ultimoMovimientoAt: new Date("2026-09-15T20:00:00Z"),
+      },
+      ahora,
+    );
+    expect(resultado.motivos.map((m) => m.codigo)).toEqual(["QR_INVALIDO"]);
+  });
+
   it("rechaza un segundo escaneo dentro de los 60 segundos e informa cuánto falta", () => {
     const resultado = puedeEscanear(
-      { ...base, ultimoMovimientoAt: new Date("2026-09-15T21:59:40Z") },
+      { ...ingreso, ultimoMovimientoAt: new Date("2026-09-15T21:59:40Z") },
       ahora,
     );
     const motivo = resultado.motivos.find((m) => m.codigo === "ESCANEO_DUPLICADO");
     expect(motivo?.datos).toEqual({ segundosTranscurridos: 20, segundosRestantes: 40 });
   });
 
+  it("el debounce también corta el egreso (H2)", () => {
+    const resultado = puedeEscanear(
+      { ...egreso, ultimoMovimientoAt: new Date("2026-09-15T21:59:40Z") },
+      ahora,
+    );
+    expect(resultado.motivos.map((m) => m.codigo)).toEqual(["ESCANEO_DUPLICADO"]);
+  });
+
   it("borde: exactamente a los 60 segundos ya deja escanear", () => {
     const resultado = puedeEscanear(
       {
-        ...base,
+        ...ingreso,
         ultimoMovimientoAt: new Date(ahora.getTime() - DEBOUNCE_ESCANEO_SEGUNDOS * 1000),
       },
       ahora,

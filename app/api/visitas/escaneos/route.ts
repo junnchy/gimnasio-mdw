@@ -18,6 +18,10 @@ export async function POST(request: Request) {
     const socioId = await usuarioDeEjemplo("SOCIO");
     const ahora = new Date();
 
+    // El mismo QR abre o cierra: lo decide el servidor según el estado del
+    // socio, no el cliente (flujo §5). Hay que saberlo ANTES de evaluar las
+    // reglas, porque la condición de membresía aplica solo al ingreso (H1).
+    const abierta = await visitaAbiertaDelSocio(socioId);
     const membresia = await obtenerMembresiaActual(socioId);
     const veredicto = puedeEscanear(
       {
@@ -25,14 +29,12 @@ export async function POST(request: Request) {
         token: resultado.data.qrToken,
         tokenEsperado: process.env.QR_TOKEN ?? "",
         ultimoMovimientoAt: await ultimoMovimientoDelSocio(socioId),
+        hayVisitaAbierta: abierta !== null,
       },
       ahora,
     );
     if (!veredicto.ok) return conflicto(veredicto);
 
-    // El mismo QR abre o cierra: lo decide el servidor según el estado del
-    // socio, no el cliente (flujo §5).
-    const abierta = await visitaAbiertaDelSocio(socioId);
     if (accionDeEscaneo(abierta !== null) === "ABRIR") {
       return NextResponse.json({ ...(await abrirVisita(socioId, ahora)), duracionMin: null }, { status: 201 });
     }
