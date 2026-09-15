@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
-import { crearPago } from "@/lib/db/pagos";
+import { obtenerMembresiaParaPago } from "@/lib/db/membresias";
+import { registrarPago } from "@/lib/db/pagos";
+import { puedeRegistrarPago } from "@/lib/pago";
 import { pagoSchema } from "@/lib/schemas/pago";
+import { conflicto, datosInvalidos, errorInesperado, noEncontrado } from "@/lib/http";
 import { leerBody } from "@/lib/utils";
 
 export async function POST(request: Request) {
-  const resultado = pagoSchema.omit({ estado: true }).safeParse(await leerBody(request));
-  if (!resultado.success) return NextResponse.json({ error: "Datos inválidos", detalles: resultado.error.flatten() }, { status: 400 });
-  // TODO (clase 5): con pago APROBADO, renovar membresía en la misma transacción.
-  // TODO (clase 6): exigir ADMIN.
-  const pago = await crearPago(resultado.data);
-  return pago ? NextResponse.json(pago, { status: 201 }) : NextResponse.json({ error: "Membresía no encontrada" }, { status: 404 });
+  try {
+    // El `estado` del pago no se acepta del cliente: lo decide el servidor
+    // según el medio (spec §8).
+    const resultado = pagoSchema.omit({ estado: true }).safeParse(await leerBody(request));
+    if (!resultado.success) return datosInvalidos(resultado.error.flatten());
+
+    // TODO (clase 6): exigir ADMIN.
+    const membresia = await obtenerMembresiaParaPago(resultado.data.membresiaId);
+    if (!membresia) return noEncontrado("Membresía no encontrada");
+
+    const veredicto = puedeRegistrarPago({ estadoMembresia: membresia.estado });
+    if (!veredicto.ok) return conflicto(veredicto);
+
+    const { pago, renovada, fechaFin } = await registrarPago(resultado.data, membresia, new Date());
+    return NextResponse.json({ pago, membresia: { renovada, fechaFin } }, { status: 201 });
+  } catch (error) {
+    return errorInesperado(error);
+  }
 }
