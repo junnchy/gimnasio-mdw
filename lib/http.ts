@@ -5,7 +5,8 @@
  * - 400: el cliente lo arregla mandando otros datos (estructura o tipos).
  * - 404: el recurso no existe (o no es visible para quien pregunta).
  * - 409: los datos están bien, pero el estado del sistema no permite la operación.
- * - 500: falla inesperada del sistema. Nunca lleva detalle al cliente.
+ * - 401/403/500: no salen de acá sino de `responderError` (`lib/errores.ts`),
+ *   que traduce las excepciones en un solo lugar.
  */
 import { NextResponse } from "next/server";
 import type { Veredicto } from "@/lib/reglas";
@@ -42,13 +43,4 @@ export function conflictoSimple(mensaje: string, codigo: string) {
     { error: mensaje, motivos: [{ codigo, mensaje }] },
     { status: 409 },
   );
-}
-
-/**
- * Único lugar donde se responde 500. El detalle va al log del servidor, no al
- * cliente: un error inesperado no se le explica a quien llama.
- */
-export function errorInesperado(error: unknown) {
-  console.error(error);
-  return NextResponse.json({ error: "Error interno" }, { status: 500 });
 }
