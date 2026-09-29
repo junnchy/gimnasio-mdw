@@ -9,7 +9,9 @@ export async function listarRutinasDeSocio(socioId: string, limite: number = LIM
 }
 
 export async function crearRutina(datos: Omit<Rutina, "profesorId">, profesorId: string) {
-  const socio = await prisma.user.findUnique({ where: { id: datos.socioId }, select: { id: true } });
+  // El socioId viene del body (el profesor elige a quién asignarla), así que
+  // se verifica que sea un SOCIO: una rutina no se le asigna a un admin.
+  const socio = await prisma.user.findFirst({ where: { id: datos.socioId, rol: "SOCIO" }, select: { id: true } });
   if (!socio) return null;
   return prisma.rutina.create({ data: { ...datos, profesorId } });
 }
