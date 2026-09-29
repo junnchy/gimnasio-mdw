@@ -49,6 +49,25 @@ variables `SEED_ADMIN_EMAIL` / `SEED_PROFESOR_EMAIL` del seed). La API no
 ofrece ninguna forma de cambiar un rol. La pantalla para que el admin lo haga
 no está en la spec; lo que exige la regla es que nadie pueda auto-asignárselo.
 
+### Solo entra un mail que Google verificó y controla (review del PR #6)
+
+Como la cuenta se vincula con nuestra base **solo por el mail**, aceptar un
+mail no verificado permitiría presentarse con el mail de un ADMIN y heredar su
+rol. El callback `signIn` (`esIdentidadGoogleConfiable` en `lib/auth.ts`) corre
+antes del upsert y exige:
+
+- proveedor Google;
+- `email_verified === true` en el perfil original de Google;
+- que Google sea **autoritativo** para ese mail: una cuenta `@gmail.com` o de
+  Google Workspace (el perfil trae `hd`).
+
+**Qué se resigna:** no pueden entrar las cuentas de Google creadas con un mail
+de otro proveedor (Outlook, Yahoo). Google advierte que, para esos mails,
+haberlo verificado alguna vez no prueba que la persona lo siga controlando.
+Admitirlas exigiría vincular por el identificador estable de Google (`sub`) en
+lugar del mail, que hoy no guardamos. Si aparece esa necesidad, se revisa esta
+decisión.
+
 ## Decisión 2 — La sesión viaja en un token (JWT), no en una tabla
 
 | Opción | A favor | En contra |

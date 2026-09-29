@@ -63,6 +63,40 @@ declare module "next-auth/jwt" {
   }
 }
 
+/**
+ * ¿Podemos confiar en que quien entra es dueño de ese mail?
+ *
+ * El callback `jwt` vincula la cuenta con un usuario de nuestra base SOLO por
+ * el mail, y copia su rol al token. Si aceptáramos un mail que Google no
+ * verificó, alguien podría presentarse con el mail de un ADMIN y heredar su
+ * rol. Por eso, antes de tocar la base, se exigen tres cosas:
+ *
+ * 1. Que el login venga de Google (el único proveedor configurado).
+ * 2. Que Google diga que el mail está verificado (`email_verified === true`),
+ *    leído del perfil original del proveedor, no de `user.email`.
+ * 3. Que Google sea AUTORITATIVO para ese mail: una cuenta @gmail.com, o una
+ *    de Google Workspace (el perfil trae `hd`, el dominio de la organización).
+ *    Para una cuenta de Google creada con un mail de otro proveedor (Outlook,
+ *    Yahoo), Google advierte que haber verificado ese mail alguna vez no
+ *    prueba que la persona lo siga controlando hoy.
+ *
+ * Es una función pura y exportada para poder probarla sin Auth.js.
+ */
+export function esIdentidadGoogleConfiable(datos: {
+  readonly proveedor: string | undefined;
+  readonly perfil: { readonly email?: string | null; readonly email_verified?: boolean | null; readonly hd?: unknown } | undefined;
+}): boolean {
+  if (datos.proveedor !== "google" || !datos.perfil) return false;
+
+  const email = datos.perfil.email?.trim().toLowerCase();
+  if (!email) return false;
+  if (datos.perfil.email_verified !== true) return false;
+
+  const esGmail = email.endsWith("@gmail.com");
+  const esWorkspace = typeof datos.perfil.hd === "string" && datos.perfil.hd.length > 0;
+  return esGmail || esWorkspace;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Lee AUTH_GOOGLE_ID y AUTH_GOOGLE_SECRET del entorno.
   providers: [Google],
@@ -78,6 +112,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
 
   callbacks: {
+    /**
+     * Corre ANTES que `jwt`: si devuelve false, Auth.js corta el login y no se
+     * llega ni al upsert ni a emitir una sesión. Ver `esIdentidadGoogleConfiable`.
+     */
+    async signIn({ account, profile }) {
+      return esIdentidadGoogleConfiable({ proveedor: account?.provider, perfil: profile });
+    },
+
     /** Corre una vez, al entrar: el único momento en que `user` trae los datos de Google. */
     async jwt({ token, user }) {
       // Google ya lo manda en minúsculas; se normaliza igual para que coincida
