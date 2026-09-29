@@ -4,16 +4,45 @@ Cada operación nace de una historia de `docs/spec.md`. Las rutas usan sustantiv
 en plural; las transiciones de negocio son subrecursos porque el servidor —no el
 cliente— decide si el cambio de estado corresponde.
 
-Hasta la clase 6 los handlers dejan documentado el `TODO` de sesión. El contrato
-ya incluye los `401` y permisos finales.
+Desde la clase 6 todos los endpoints piden sesión (Auth.js con Google), salvo
+los dos marcados como públicos a propósito. El rol y el id de quien llama salen
+**siempre** de la sesión: ningún `socioId`, `profesorId` ni `rol` se acepta del
+body, del query ni de un header.
+
+## Matriz de permisos
+
+Cada celda es una línea de código. **401**: no hay sesión. **403**: hay sesión,
+pero el rol no alcanza. **propias**: puede, pero la consulta lleva su id en el
+WHERE, y lo ajeno responde 404 como si no existiera.
+
+| Operación | Sin sesión | Socio | Profesor | Admin |
+|---|---|---|---|---|
+| Planes: listar, crear, corregir | 401 | 403 | 403 | ✓ |
+| Asignar membresía, registrar pago | 401 | 403 | 403 | ✓ |
+| Mi membresía | 401 | ✓ propia | 403 | 403 |
+| Ver clases (listado y detalle) | 401 | ✓ | ✓ | ✓ |
+| Programar clase | 401 | 403 | ✓ | 403 |
+| Corregir clase | 401 | 403 | ✓ propias | 403 |
+| Mis reservas, reservar, cancelar | 401 | ✓ propias | 403 | 403 |
+| Marcar asistencia | 401 | 403 | ✓ de sus clases (403 si la clase es de otro) | 403 |
+| Mis visitas, escanear QR | 401 | ✓ propias | 403 | 403 |
+| Mis rutinas | 401 | ✓ propias | 403 | 403 |
+| Crear rutina para un socio | 401 | 403 | ✓ | 403 |
+| Corregir rutina, agregarle ejercicios | 401 | 403 | ✓ propias | 403 |
+| Catálogo de ejercicios: ver y agregar | 401 | 403 | ✓ | 403 |
+| Cierre diario de visitas | secreto `x-cron-secret` (lo llama un proceso, no una persona) | | | |
+| `/api/auth/*` (login, logout, callback) | público a propósito | | | |
+
+Los roles no se auto-asignan: quien entra con Google por primera vez nace
+**SOCIO**, y PROFESOR o ADMIN solo se asignan en la base (ADR 0004).
 
 ## Planes
 
 | Método y ruta | Qué hace | Rol | Errores |
 |---|---|---|---|
-| `GET /api/planes` | Lista planes de membresía | Admin | 401 |
-| `POST /api/planes` | Crea un plan | Admin | 400, 401, 409 |
-| `PATCH /api/planes/:id` | Corrige un plan | Admin | 400, 401, 404 |
+| `GET /api/planes` | Lista planes de membresía | Admin | 400, 401, 403 |
+| `POST /api/planes` | Crea un plan | Admin | 400, 401, 403, 409 |
+| `PATCH /api/planes/:id` | Corrige un plan | Admin | 400, 401, 403, 404, 409 |
 
 El `409` evita duplicar un nombre de plan. No se borra un plan con membresías:
 se lo desactiva para conservar el historial.
@@ -22,9 +51,9 @@ se lo desactiva para conservar el historial.
 
 | Método y ruta | Qué hace | Rol | Errores |
 |---|---|---|---|
-| `GET /api/membresias/mia` | Devuelve estado y vencimiento propios | Socio | 401 |
-| `POST /api/membresias` | Asigna una membresía a un socio | Admin | 400, 401, 404 |
-| `POST /api/pagos` | Registra un intento de pago | Admin | 400, 401, 404 |
+| `GET /api/membresias/mia` | Devuelve estado y vencimiento propios | Socio | 401, 403, 404 |
+| `POST /api/membresias` | Asigna una membresía a un socio | Admin | 400, 401, 403, 404 |
+| `POST /api/pagos` | Registra un intento de pago | Admin | 400, 401, 403, 404, 409 |
 
 Un pago aprobado crea el pago y renueva la membresía en una transacción. Un pago
 rechazado conserva el intento pero no activa la membresía.
@@ -33,12 +62,13 @@ rechazado conserva el intento pero no activa la membresía.
 
 | Método y ruta | Qué hace | Rol | Errores |
 |---|---|---|---|
-| `GET /api/clases` | Lista clases programadas | Socio, Profesor, Admin | 401 |
+| `GET /api/clases` | Lista clases programadas | Socio, Profesor, Admin | 400, 401 |
+| `GET /api/clases/:id` | Detalle de una clase | Socio, Profesor, Admin | 401, 404 |
 | `POST /api/clases` | Programa una clase | Profesor | 400, 401, 403 |
-| `PATCH /api/clases/:id` | Corrige una clase propia | Profesor | 400, 401, 404 |
-| `GET /api/reservas` | Lista reservas propias | Socio | 401 |
-| `POST /api/reservas` | Reserva una clase | Socio | 400, 401, 404, 409 |
-| `POST /api/reservas/:id/cancelacion` | Cancela una reserva propia | Socio | 401, 404, 409 |
+| `PATCH /api/clases/:id` | Corrige una clase propia | Profesor | 400, 401, 403, 404 |
+| `GET /api/reservas` | Lista reservas propias | Socio | 400, 401, 403 |
+| `POST /api/reservas` | Reserva una clase | Socio | 400, 401, 403, 404, 409 |
+| `POST /api/reservas/:id/cancelacion` | Cancela una reserva propia | Socio | 401, 403, 404, 409 |
 | `POST /api/reservas/:id/asistencia` | Marca presencia | Profesor de la clase | 401, 403, 404, 409 |
 
 Los `409` de reserva cubren membresía vencida, cupo agotado, duplicado u horario
@@ -49,8 +79,8 @@ una confirmada de una clase ya dictada.
 
 | Método y ruta | Qué hace | Rol | Errores |
 |---|---|---|---|
-| `GET /api/visitas` | Lista visitas propias | Socio | 401 |
-| `POST /api/visitas/escaneos` | Abre o cierra la visita según exista una abierta | Socio | 400, 401, 409 |
+| `GET /api/visitas` | Lista visitas propias | Socio | 400, 401, 403 |
+| `POST /api/visitas/escaneos` | Abre o cierra la visita según exista una abierta | Socio | 400, 401, 403, 409 |
 | `POST /api/visitas/cierre-diario` | Marca incompletas las visitas abiertas del día | Proceso programado con `x-cron-secret` | 401 |
 
 El escaneo recibe el token QR, no el `socioId`: el socio siempre sale de la
@@ -61,11 +91,11 @@ en menos de 60 segundos.
 
 | Método y ruta | Qué hace | Rol | Errores |
 |---|---|---|---|
-| `GET /api/rutinas/mia` | Devuelve las rutinas asignadas | Socio | 401 |
+| `GET /api/rutinas/mia` | Devuelve las rutinas asignadas | Socio | 400, 401, 403 |
 | `POST /api/rutinas` | Crea una rutina para un socio | Profesor | 400, 401, 403, 404 |
-| `PATCH /api/rutinas/:id` | Corrige una rutina propia | Profesor | 400, 401, 404 |
+| `PATCH /api/rutinas/:id` | Corrige una rutina propia | Profesor | 400, 401, 403, 404 |
 | `POST /api/rutinas/:id/ejercicios` | Agrega un ejercicio a la rutina | Profesor | 400, 401, 403, 404, 409 |
-| `GET /api/ejercicios` | Lista el catálogo de ejercicios | Profesor | 401, 403 |
+| `GET /api/ejercicios` | Lista el catálogo de ejercicios | Profesor | 400, 401, 403 |
 | `POST /api/ejercicios` | Agrega un ejercicio al catálogo | Profesor | 400, 401, 403, 409 |
 
 `409` representa un ejercicio ya existente en la rutina o un nombre ya existente
@@ -137,6 +167,9 @@ Cuando fallan varias reglas a la vez, vienen todas.
 | `POST /api/ejercicios` | Nombre de ejercicio repetido | Base | 409 | Ya existe un ejercicio con ese nombre |
 | `POST /api/rutinas` | El socio no existe | Base | 404 | Socio no encontrado |
 | `POST /api/rutinas/:id/ejercicios` | El ejercicio ya está en la rutina | Base | 409 | El ejercicio ya está en esta rutina |
+| Cualquier operación salvo las públicas | No hay sesión | Sesión (`requerirUsuario`) | 401 | No autenticado |
+| Cualquier operación con rol | La sesión es de otro rol (matriz de arriba) | Sesión (`requerirUsuario("ROL")`) | 403 | No podés realizar esta operación |
+| Operaciones sobre datos propios | El recurso es de otro usuario | Base (id de la sesión en el WHERE) | 404 | El mismo mensaje que "no existe" |
 | Cualquier operación | Falla inesperada del sistema | — | 500 | Error interno |
 
 **400 vs 409:** si el cliente lo arregla mandando otros datos, es 400; si primero
@@ -153,4 +186,4 @@ otro profesor responde 403: el recurso es visible, lo que falta es el permiso.
 |---|---|
 | 4 | Todos los endpoints del contrato, sus módulos en `lib/db/`, validación Zod y pruebas en `docs/api.http`. Hasta Auth.js se usa el usuario de ejemplo del seed, igual que el `TODO (clase 6)` de la referencia. |
 | 5 | Reglas de conflicto implementadas como funciones puras en `lib/` (membresía activa, cupo, solapamiento, QR y debounce, cancelación fuera de término, clase ya dictada, renovación atómica del pago), con el catálogo de errores de arriba y su request en `docs/api.http`. |
-| 6 | Pendiente reemplazar el usuario de ejemplo por Auth.js y hacer efectivos `401`/`403`. |
+| 6 | Login con Google (Auth.js, sesión JWT). Cada endpoint exige sesión y rol según la matriz, con `requerirUsuario`; las consultas de datos propios llevan el id de la sesión en el WHERE; `401`/`403`/`500` se traducen en un solo lugar (`responderError`). Se borró el usuario de ejemplo. Los tres casos están al principio de `docs/api.http`. |
