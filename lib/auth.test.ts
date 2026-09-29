@@ -76,6 +76,14 @@ describe("callback jwt: el rol sale de nuestra base", () => {
     expect(token).toMatchObject({ usuarioId: "u9", rol: "SOCIO" });
   });
 
+  it("normaliza el mail a minúsculas, igual que el seed", async () => {
+    upsert.mockResolvedValueOnce({ id: "u3", rol: "ADMIN" });
+
+    await configuracion.callbacks!.jwt({ token: {}, user: { email: " Juan@Gmail.com " } });
+
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { email: "juan@gmail.com" } }));
+  });
+
   it("volver a entrar NO pisa el rol que ya tiene en la base", async () => {
     upsert.mockResolvedValueOnce({ id: "u2", rol: "PROFESOR" });
 

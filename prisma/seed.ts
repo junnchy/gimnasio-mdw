@@ -165,7 +165,11 @@ async function main() {
     [process.env.SEED_ADMIN_EMAIL, Rol.ADMIN],
     [process.env.SEED_PROFESOR_EMAIL, Rol.PROFESOR],
   ];
-  for (const [email, rol] of rolesPorMail) {
+  for (const [emailCrudo, rol] of rolesPorMail) {
+    // En minúsculas, igual que en lib/auth.ts: con "Juan@Gmail.com" acá el
+    // seed crearía un ADMIN que nadie usa, y el login con Google otro usuario
+    // aparte como SOCIO.
+    const email = emailCrudo?.trim().toLowerCase();
     if (!email) continue;
     await prisma.user.upsert({
       where: { email },

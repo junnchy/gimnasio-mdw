@@ -184,6 +184,6 @@ otro profesor responde 403: el recurso es visible, lo que falta es el permiso.
 
 | Clase | Qué está listo |
 |---|---|
-| 4 | Todos los endpoints del contrato, sus módulos en `lib/db/`, validación Zod y pruebas en `docs/api.http`. Hasta Auth.js se usa el usuario de ejemplo del seed, igual que el `TODO (clase 6)` de la referencia. |
+| 4 | Todos los endpoints del contrato, sus módulos en `lib/db/`, validación Zod y pruebas en `docs/api.http`. Hasta Auth.js se usaba el usuario de ejemplo del seed (reemplazado en la clase 6). |
 | 5 | Reglas de conflicto implementadas como funciones puras en `lib/` (membresía activa, cupo, solapamiento, QR y debounce, cancelación fuera de término, clase ya dictada, renovación atómica del pago), con el catálogo de errores de arriba y su request en `docs/api.http`. |
 | 6 | Login con Google (Auth.js, sesión JWT). Cada endpoint exige sesión y rol según la matriz, con `requerirUsuario`; las consultas de datos propios llevan el id de la sesión en el WHERE; `401`/`403`/`500` se traducen en un solo lugar (`responderError`). Se borró el usuario de ejemplo. Los tres casos están al principio de `docs/api.http`. |

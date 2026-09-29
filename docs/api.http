@@ -87,8 +87,7 @@ Content-Type: application/json
 
 { "nombre": "Mensual", "precio": 25000, "duracionDias": 30 }
 
-### crear plan válido → 201
-# TODO (clase 6): requiere sesión ADMIN.
+### crear plan válido → 201 (sesión de ADMIN)
 # @name crearPlan
 POST {{base}}/api/planes
 Cookie: {{sesionAdmin}}
@@ -121,7 +120,7 @@ Content-Type: application/json
 { "nombre": "", "cupoMaximo": 0, "inicio": "no-es-fecha", "duracionMin": 0 }
 
 ### crear clase → 201
-# TODO (clase 6): la clase queda asignada al profesor de ejemplo.
+# El profesorId sale de la sesión: la clase queda asignada a quien la crea.
 # @name crearClase
 POST {{base}}/api/clases
 Cookie: {{sesionProfesor}}
@@ -244,9 +243,9 @@ Content-Type: application/json
 # Clase 5 — caminos de conflicto del catálogo de errores
 #
 # `@qr` tiene que coincidir con QR_TOKEN de .env.local.
-# Los casos marcados (*) no se pueden disparar por HTTP hasta la clase 6,
-# porque `usuarioDeEjemplo` siempre actúa como el mismo socio: quedan cubiertos
-# por los tests unitarios de `lib/*.test.ts`.
+# Los casos marcados (*) necesitan una segunda cuenta con otro estado u otro
+# rol, así que llevan instrucciones en vez de una request lista. Igual quedan
+# cubiertos por los tests unitarios de `lib/*.test.ts`.
 ###############################################################################
 
 @qr = qr-puerta-principal-2026
@@ -281,7 +280,9 @@ Content-Type: application/json
 { "qrToken": "{{qr}}" }
 
 ### (*) escaneo con membresía vencida → 409 MEMBRESIA_INACTIVA
-# Cubierto por lib/visita.test.ts → "rechaza con membresía vencida".
+# Hace falta un socio con la membresía vencida: en Prisma Studio, ponerle a la
+# membresía de esa cuenta una `fechaFin` pasada, y mandar el escaneo válido de
+# arriba con su cookie. También cubierto por lib/visita.test.ts.
 
 ### cierre diario sin el secreto → 401
 POST {{base}}/api/visitas/cierre-diario

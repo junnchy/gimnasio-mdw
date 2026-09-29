@@ -4,7 +4,7 @@ import { puedeCancelar } from "@/lib/reserva";
 import { id } from "@/lib/schemas/_common";
 import { requerirUsuario } from "@/lib/auth";
 import { responderError } from "@/lib/errores";
-import { conflicto, noEncontrado } from "@/lib/http";
+import { conflicto, conflictoSimple, noEncontrado } from "@/lib/http";
 
 type Contexto = { params: Promise<{ id: string }> };
 
@@ -25,10 +25,11 @@ export async function POST(_request: Request, { params }: Contexto) {
     );
     if (!veredicto.ok) return conflicto(veredicto);
 
-    // La escritura vuelve a filtrar por socio y por CONFIRMADA: si otra
-    // request la canceló en el medio, no se pisa nada.
+    // La escritura vuelve a filtrar por socio y por CONFIRMADA. Si no tocó
+    // ninguna fila, la reserva existía y era suya (se leyó arriba): otra
+    // request la canceló en el medio. Eso es un 409, no un 404.
     const cancelada = await cancelarReserva(reservaId, socio.id);
-    if (!cancelada) return noEncontrado("Reserva no encontrada");
+    if (!cancelada) return conflictoSimple("La reserva no está confirmada.", "RESERVA_NO_CONFIRMADA");
     return NextResponse.json({ id: cancelada.id, estado: cancelada.estado });
   } catch (error) {
     return responderError("POST /api/reservas/:id/cancelacion", error);

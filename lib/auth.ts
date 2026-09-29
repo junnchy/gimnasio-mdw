@@ -10,11 +10,26 @@
  * esa persona es profesora del gimnasio. Por eso el `upsert` de abajo crea
  * SIEMPRE el rol de menor privilegio (SOCIO), y un ADMIN o PROFESOR solo
  * existe si alguien lo cargó en la base (seed o Prisma Studio).
+ *
+ * ⚠️ NO IMPORTAR ESTE ARCHIVO DESDE UN `middleware.ts`. El middleware de Next
+ * corre en el runtime Edge, donde Prisma no funciona, y este archivo importa
+ * Prisma (el upsert del callback `jwt`). Si algún día hace falta un
+ * middleware, hay que separar la configuración de Auth.js en un archivo sin
+ * Prisma (`auth.config.ts`) y que el middleware importe solo ese.
  */
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+// Sin este import TypeScript no encuentra el módulo `next-auth/jwt` para la
+// ampliación de tipos de más abajo.
+import "next-auth/jwt";
 import type { Rol } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
+// Los dos errores de autorización se definen en `lib/errores.ts` (sin
+// dependencias, para que los tests de los handlers no carguen Auth.js ni
+// Prisma) y se re-exportan acá: para el resto del proyecto salen de este archivo.
+import { NoAutenticado, NoAutorizado } from "@/lib/errores";
+
+export { NoAutenticado, NoAutorizado };
 
 /**
  * Lo que el resto del proyecto conoce de quien hace el request.
@@ -30,15 +45,6 @@ export type UsuarioSesion = {
   rol: Rol;
 };
 
-/**
- * Los dos errores de autorización, con nombre propio. `responderError` los
- * distingue con `instanceof` para responder 401 o 403 en lugar de 500, sin
- * comparar strings. Se definen en `lib/errores.ts` (sin dependencias) y se
- * re-exportan acá.
- */
-import { NoAutenticado, NoAutorizado } from "@/lib/errores";
-export { NoAutenticado, NoAutorizado };
-
 declare module "next-auth" {
   interface Session {
     user: {
@@ -49,9 +55,6 @@ declare module "next-auth" {
     };
   }
 }
-
-// Sin este import TypeScript no encuentra el módulo para la ampliación de abajo.
-import "next-auth/jwt";
 
 declare module "next-auth/jwt" {
   interface JWT {
@@ -77,16 +80,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     /** Corre una vez, al entrar: el único momento en que `user` trae los datos de Google. */
     async jwt({ token, user }) {
-      if (user?.email) {
+      // Google ya lo manda en minúsculas; se normaliza igual para que coincida
+      // siempre con el del seed (que también se guarda en minúsculas).
+      const email = user?.email?.trim().toLowerCase();
+      if (user && email) {
         const usuario = await prisma.user.upsert({
-          where: { email: user.email },
+          where: { email },
           // Vacío a propósito: si la persona ya existe, Google NO pisa lo que
           // dice nuestra base. Con `{ rol: "SOCIO" }` acá, un profesor
           // perdería su rol en el siguiente login.
           update: {},
           create: {
-            email: user.email,
-            nombre: user.name ?? user.email,
+            email,
+            nombre: user.name ?? email,
             rol: "SOCIO", // siempre el menor privilegio
           },
         });

@@ -61,6 +61,12 @@ profesor), y "cerrá sesión y volvé a entrar" es una instrucción aceptable. L
 cookie va cifrada (JWE), no solo firmada: sin `AUTH_SECRET` no se puede leer ni
 fabricar.
 
+Por el mismo motivo, **si se borra un usuario de la base, su sesión sigue viva
+hasta que vence**: el token no se consulta contra la tabla. Sus requests pasan
+`requerirUsuario` y fallan después, al tocar datos que ya no existen, con un
+500 en lugar de un 401. Lo aceptamos: en el sistema no se borran usuarios con
+historial (las relaciones son `Restrict`), así que en la práctica no pasa.
+
 **Cuándo revisar esta decisión:** si hiciera falta dar de baja a alguien al
 instante (un profesor que se va en malos términos), o si aparece la pantalla
 de administración de roles. Ahí conviene pasar a sesión en base.

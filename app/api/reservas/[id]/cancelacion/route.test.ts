@@ -63,4 +63,17 @@ describe("POST /api/reservas/:id/cancelacion", () => {
     expect(respuesta.status).toBe(200);
     expect(cancelarReserva).toHaveBeenCalledWith(ID_RESERVA, "socio-1");
   });
+
+  it("si otra request la canceló en el medio → 409, no 404", async () => {
+    requerirUsuario.mockResolvedValueOnce(socio);
+    obtenerReservaDeSocio.mockResolvedValueOnce({
+      id: ID_RESERVA, estado: "CONFIRMADA", clase: { inicio: new Date(Date.now() + 86_400_000) },
+    });
+    cancelarReserva.mockResolvedValueOnce(null);
+
+    const respuesta = await cancelar();
+
+    expect(respuesta.status).toBe(409);
+    expect((await respuesta.json()).motivos[0].codigo).toBe("RESERVA_NO_CONFIRMADA");
+  });
 });
