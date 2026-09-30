@@ -5,17 +5,19 @@ import { esDuplicado } from "@/lib/db/errores";
 import { estadoMembresiaVista } from "@/lib/membresia";
 import { accionDeEscaneo, duracionDeVisita, puedeEscanear } from "@/lib/visita";
 import { registrarEscaneoSchema } from "@/lib/schemas/escaneo";
-import { usuarioDeEjemplo } from "@/lib/usuarioDeEjemplo";
-import { conflicto, conflictoSimple, datosInvalidos, errorInesperado } from "@/lib/http";
+import { requerirUsuario } from "@/lib/auth";
+import { responderError } from "@/lib/errores";
+import { conflicto, conflictoSimple, datosInvalidos} from "@/lib/http";
 import { leerBody } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
+    const socio = await requerirUsuario("SOCIO");
+    // El QR trae solo el token: el socio sale de la sesión, nunca del body.
     const resultado = registrarEscaneoSchema.omit({ socioId: true }).safeParse(await leerBody(request));
     if (!resultado.success) return datosInvalidos(resultado.error.flatten());
 
-    // TODO (clase 6): socioId sale de sesión.
-    const socioId = await usuarioDeEjemplo("SOCIO");
+    const socioId = socio.id;
     const ahora = new Date();
 
     // El mismo QR abre o cierra: lo decide el servidor según el estado del
@@ -47,6 +49,6 @@ export async function POST(request: Request) {
     if (esDuplicado(error)) {
       return conflictoSimple("Ya tenés una visita abierta.", "VISITA_ABIERTA_DUPLICADA");
     }
-    return errorInesperado(error);
+    return responderError("POST /api/visitas/escaneos", error);
   }
 }

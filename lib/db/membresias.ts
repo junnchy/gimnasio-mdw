@@ -19,7 +19,8 @@ export async function obtenerMembresiaParaPago(id: string) {
 }
 
 export async function crearMembresia(datos: Omit<Membresia, "estado">) {
-  const socio = await prisma.user.findUnique({ where: { id: datos.socioId }, select: { id: true } });
+  // Solo un SOCIO tiene membresía: el socioId viene del body del admin.
+  const socio = await prisma.user.findFirst({ where: { id: datos.socioId, rol: "SOCIO" }, select: { id: true } });
   const plan = await prisma.plan.findUnique({ where: { id: datos.planId }, select: { id: true } });
   if (!socio || !plan) return null;
   return prisma.membresia.create({ data: { ...datos, estado: "ACTIVA" } });

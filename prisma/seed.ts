@@ -156,6 +156,28 @@ async function main() {
     });
   }
 
+  // Clase 6 — roles para cuentas de Google reales. Quien entra con Google por
+  // primera vez nace SOCIO (lib/auth.ts). Para probar como ADMIN o PROFESOR,
+  // poner el mail de Google en estas variables y correr el seed: el upsert le
+  // asigna el rol. Es la única forma de subir de rol: la API no la ofrece.
+  // Con sesión JWT, el rol nuevo se ve recién al volver a iniciar sesión.
+  const rolesPorMail: [string | undefined, Rol][] = [
+    [process.env.SEED_ADMIN_EMAIL, Rol.ADMIN],
+    [process.env.SEED_PROFESOR_EMAIL, Rol.PROFESOR],
+  ];
+  for (const [emailCrudo, rol] of rolesPorMail) {
+    // En minúsculas, igual que en lib/auth.ts: con "Juan@Gmail.com" acá el
+    // seed crearía un ADMIN que nadie usa, y el login con Google otro usuario
+    // aparte como SOCIO.
+    const email = emailCrudo?.trim().toLowerCase();
+    if (!email) continue;
+    await prisma.user.upsert({
+      where: { email },
+      update: { rol },
+      create: { email, nombre: email, rol },
+    });
+  }
+
   console.log("Seed completo.");
 }
 
