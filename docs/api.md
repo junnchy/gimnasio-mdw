@@ -54,6 +54,7 @@ se lo desactiva para conservar el historial.
 | `GET /api/membresias/mia` | Devuelve estado y vencimiento propios | Socio | 401, 403, 404 |
 | `POST /api/membresias` | Asigna una membresía a un socio | Admin | 400, 401, 403, 404 |
 | `POST /api/pagos` | Registra un intento de pago | Admin | 400, 401, 403, 404, 409 |
+| `POST /api/pagos/webhook` | Recibe la notificación de Mercado Pago y aplica el estado real del pago | Mercado Pago (sin sesión) | 400, 500, 502 |
 
 Un pago aprobado crea el pago y renueva la membresía en una transacción. Un pago
 rechazado conserva el intento pero no activa la membresía.
@@ -156,6 +157,8 @@ Cuando fallan varias reglas a la vez, vienen todas.
 | `POST /api/pagos` | `monto` negativo, `medio` fuera del enum o fecha inválida | Zod | 400 | Datos inválidos |
 | `POST /api/pagos` | La membresía no existe | Base | 404 | Membresía no encontrada |
 | `POST /api/pagos` | La membresía está CANCELADA (ADR 0002: cancelar es un hecho) | Regla `MEMBRESIA_CANCELADA` | 409 | La membresía está cancelada: hay que crear una nueva. |
+| `POST /api/pagos/webhook` | `data.id` que no es un id numérico de Mercado Pago | Zod | 400 | Datos inválidos |
+| `POST /api/pagos/webhook` | Mercado Pago no responde o responde algo inesperado (Mercado Pago reintenta) | Servicio externo | 502 | No se pudo consultar el pago en Mercado Pago |
 
 ### Planes, clases, rutinas y ejercicios
 

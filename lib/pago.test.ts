@@ -1,7 +1,7 @@
 // Reglas de H7: qué estado nace un pago según el medio, y cómo se renueva la
 // membresía cuando el pago queda APROBADO.
 import { describe, it, expect } from "vitest";
-import { estadoInicialDePago, puedeRegistrarPago, renovacionPorPago } from "./pago";
+import { estadoInicialDePago, puedeRegistrarPago, renovacionPorPago, transicionPorMercadoPago } from "./pago";
 
 const ahora = new Date("2026-09-15T12:00:00Z");
 
@@ -59,5 +59,40 @@ describe("puedeRegistrarPago", () => {
   it("rechaza sobre una membresía cancelada (ADR 0002: cancelar es un hecho)", () => {
     const resultado = puedeRegistrarPago({ estadoMembresia: "CANCELADA" });
     expect(resultado.motivos.map((m) => m.codigo)).toEqual(["MEMBRESIA_CANCELADA"]);
+  });
+});
+
+describe("transicionPorMercadoPago (webhook, spec §8)", () => {
+  const pendienteMp = { medio: "MP", estadoActual: "PENDIENTE" } as const;
+
+  it("approved → APROBADO", () => {
+    expect(transicionPorMercadoPago({ ...pendienteMp, estadoMercadoPago: "approved" })).toBe("APROBADO");
+  });
+
+  it("rejected y cancelled → RECHAZADO: queda constancia del intento (H7)", () => {
+    expect(transicionPorMercadoPago({ ...pendienteMp, estadoMercadoPago: "rejected" })).toBe("RECHAZADO");
+    expect(transicionPorMercadoPago({ ...pendienteMp, estadoMercadoPago: "cancelled" })).toBe("RECHAZADO");
+  });
+
+  it("los estados intermedios no cambian nada", () => {
+    for (const estado of ["pending", "in_process", "authorized", "in_mediation"] as const) {
+      expect(transicionPorMercadoPago({ ...pendienteMp, estadoMercadoPago: estado })).toBeNull();
+    }
+  });
+
+  it("un pago ya APROBADO no se vuelve a mover: la notificación repetida no renueva dos veces", () => {
+    expect(
+      transicionPorMercadoPago({ medio: "MP", estadoActual: "APROBADO", estadoMercadoPago: "approved" }),
+    ).toBeNull();
+  });
+
+  it("un pago en EFECTIVO nunca lo toca Mercado Pago", () => {
+    expect(
+      transicionPorMercadoPago({ medio: "EFECTIVO", estadoActual: "PENDIENTE", estadoMercadoPago: "rejected" }),
+    ).toBeNull();
+  });
+
+  it("refunded no está en la spec: no cambia nada", () => {
+    expect(transicionPorMercadoPago({ ...pendienteMp, estadoMercadoPago: "refunded" })).toBeNull();
   });
 });
