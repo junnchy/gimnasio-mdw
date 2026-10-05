@@ -10,7 +10,9 @@ import {
 import type { EstadoMercadoPago } from "@/lib/schemas/mercadoPago";
 import type { Pago } from "@/lib/schemas/pago";
 
-export type DatosPago = Omit<Pago, "estado"> & { medio: MedioPago };
+// `id` opcional: un pago MP lo trae generado de antes, porque ya viajó a
+// Mercado Pago como referencia de la preferencia. Sin `id`, lo genera Prisma.
+export type DatosPago = Omit<Pago, "estado" | "refExterna"> & { medio: MedioPago; id?: string };
 
 /**
  * H7 — registra el pago y, si queda APROBADO, renueva la membresía **en la

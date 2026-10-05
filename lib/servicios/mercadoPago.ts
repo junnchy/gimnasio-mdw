@@ -12,7 +12,7 @@
  *    en ningún otro. Nunca lleva prefijo `NEXT_PUBLIC_` (quedaría visible en
  *    el navegador).
  * 4. La falla se loguea: todo `null` va acompañado de un `console.error` con
- *    el motivo, para poder reintentar el cobro cuando el servicio vuelva.
+ *    el motivo. El `null` no se reintenta solo: quien llama decide.
  */
 import {
   pagoMercadoPagoSchema,
@@ -21,20 +21,24 @@ import {
   type PreferenciaMercadoPago,
 } from "@/lib/schemas/mercadoPago";
 
-const API_URL = "https://api.mercadopago.com";
+const API_URL_POR_DEFECTO = "https://api.mercadopago.com";
 const TIMEOUT_MS = 5000;
 
 /**
  * Arma el cliente leyendo las variables de entorno **recién al llamarse**, no
  * al importar el módulo: así un token faltante no rompe el build ni los
  * endpoints que no cobran, y los tests pueden setear el entorno antes de usarlo.
+ *
+ * `MP_API_URL` es opcional y existe solo para demostrar la falla (apuntarla a
+ * una IP que no responde fuerza el timeout). Sin ella, se usa la API real.
  */
 function obtenerCliente() {
   const accessToken = process.env.MP_ACCESS_TOKEN;
   if (!accessToken) return null;
+  const apiUrl = process.env.MP_API_URL || API_URL_POR_DEFECTO;
 
   async function pedir(ruta: string, init: { method: "GET" | "POST"; body?: string }): Promise<unknown> {
-    const respuesta = await fetch(`${API_URL}${ruta}`, {
+    const respuesta = await fetch(`${apiUrl}${ruta}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${accessToken}`,

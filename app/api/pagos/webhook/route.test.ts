@@ -1,5 +1,5 @@
 // Clase 7 — el webhook no le cree a la notificación: consulta a Mercado Pago,
-// y elige el status para que Mercado Pago reintente solo cuando sirve.
+// y elige el status para que Mercado Pago reenvíe la notificación solo cuando sirve.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { obtenerPagoDeMercadoPago, aplicarEstadoDeMercadoPago } = vi.hoisted(() => ({
@@ -37,10 +37,19 @@ describe("POST /api/pagos/webhook", () => {
     );
   });
 
-  it("id con caracteres raros → 400 y no consulta a Mercado Pago", async () => {
+  it("id con caracteres raros → 200 IGNORADA y no consulta a Mercado Pago", async () => {
     const respuesta = await notificar({ type: "payment", data: { id: "../users/me" } });
 
-    expect(respuesta.status).toBe(400);
+    expect(respuesta.status).toBe(200);
+    expect((await respuesta.json()).resultado).toBe("IGNORADA");
+    expect(obtenerPagoDeMercadoPago).not.toHaveBeenCalled();
+  });
+
+  it("body con otro formato → 200 IGNORADA, para que Mercado Pago no lo reenvíe para siempre", async () => {
+    const respuesta = await notificar({ algo: "distinto" });
+
+    expect(respuesta.status).toBe(200);
+    expect((await respuesta.json()).resultado).toBe("IGNORADA");
     expect(obtenerPagoDeMercadoPago).not.toHaveBeenCalled();
   });
 

@@ -398,9 +398,42 @@ Content-Type: application/json
 
 { "membresiaId": "{{miMembresia.response.body.id}}", "monto": 30000, "fecha": "2026-09-15T12:00:00.000Z", "medio": "EFECTIVO" }
 
-### pago por MP → 201, nace PENDIENTE y NO renueva (lo aprueba el webhook)
+### pago por MP → 201 con checkoutUrl, nace PENDIENTE y NO renueva (lo aprueba el webhook)
 POST {{base}}/api/pagos
 Cookie: {{sesionAdmin}}
 Content-Type: application/json
 
-{ "membresiaId": "{{miMembresia.response.body.id}}", "monto": 30000, "fecha": "2026-09-15T12:00:00.000Z", "medio": "MP", "refExterna": "mp-123" }
+{ "membresiaId": "{{miMembresia.response.body.id}}", "monto": 30000, "fecha": "2026-09-15T12:00:00.000Z", "medio": "MP" }
+
+###############################################################################
+# CLASE 7 — demo de la falla: Mercado Pago es esencial para un pago MP
+###############################################################################
+# Las dos fallas se fuerzan desde `.env.local`, no desde acá: las variables las
+# lee el servidor. Después de cada cambio, reiniciar `npm run dev`. Al terminar,
+# dejar `.env.local` como estaba.
+#
+# Falla 1 — credencial rota:
+#   MP_ACCESS_TOKEN="TEST-credencial-rota"
+#   Mercado Pago responde 401 al instante.
+#
+# Falla 2 — Mercado Pago no responde:
+#   MP_API_URL="https://10.255.255.1"
+#   Es una IP que no contesta: el request corta por el timeout a los 5 s.
+#   (MP_API_URL es opcional; sin ella se usa la API real.)
+#
+# En las dos, lo esperado es lo mismo: 502 con "No es un problema de los datos
+# cargados", y NINGÚN pago nuevo en la base (verificarlo con Prisma Studio).
+
+### pago por MP con Mercado Pago caído → 502 y no registra nada
+POST {{base}}/api/pagos
+Cookie: {{sesionAdmin}}
+Content-Type: application/json
+
+{ "membresiaId": "{{miMembresia.response.body.id}}", "monto": 30000, "fecha": "2026-09-15T12:00:00.000Z", "medio": "MP" }
+
+### con Mercado Pago caído, el EFECTIVO sigue andando → 201 (el camino manual)
+POST {{base}}/api/pagos
+Cookie: {{sesionAdmin}}
+Content-Type: application/json
+
+{ "membresiaId": "{{miMembresia.response.body.id}}", "monto": 30000, "fecha": "2026-09-15T12:00:00.000Z", "medio": "EFECTIVO" }

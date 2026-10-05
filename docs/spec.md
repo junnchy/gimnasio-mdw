@@ -148,7 +148,18 @@ Esta lista es **igual para todos los proyectos**: no hay que adaptarla, hay que 
 
 **Cuál:** pagos (Mercado Pago).
 **Para qué:** cobrar las cuotas de membresía online y actualizar automáticamente el estado del socio.
-**Qué pasa si se cae:** el admin puede registrar el pago de forma manual (medio EFECTIVO) para no bloquear el acceso del socio; el cobro online se reintenta cuando el servicio vuelve.
+
+**Qué pasa si se cae**, por operación:
+
+| Operación | Mercado Pago es… | Si Mercado Pago falla, el usuario ve… |
+|---|---|---|
+| Registrar un pago en EFECTIVO (`POST /api/pagos`, medio `EFECTIVO`) | No participa | Nada distinto: el pago se registra APROBADO y renueva la membresía (201). |
+| Registrar un pago MP y generar el link de cobro (`POST /api/pagos`, medio `MP`) | **Esencial** | El admin ve un error 502: "Mercado Pago no está disponible en este momento. No es un problema de los datos cargados: probá de nuevo en unos minutos o registrá el pago en efectivo." **No se registra nada** en la base. |
+| Confirmar un pago MP (`POST /api/pagos/webhook`) | **Esencial** | El pago sigue PENDIENTE y la membresía no se renueva. Nuestro sistema no reintenta solo: el pago se confirma recién cuando Mercado Pago vuelve a mandar la notificación y la consulta anda. |
+
+Ningún cobro online se reintenta automáticamente: si la operación falla, el admin la vuelve a intentar.
+
+**El EFECTIVO es un camino manual aparte**, no un reintento ni un modo de emergencia automático. Si Mercado Pago no anda y el socio no quiere esperar, el admin cobra en mano y registra un pago nuevo con medio EFECTIVO; así no se bloquea el acceso del socio.
 
 ## 9. Fuera de alcance
 

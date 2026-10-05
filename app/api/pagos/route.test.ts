@@ -1,5 +1,5 @@
-// Clase 7 — que Mercado Pago falle nunca impide que el pago quede registrado
-// (spec §8), y el EFECTIVO no sale a Mercado Pago.
+// Clase 7 — para un pago MP, Mercado Pago es esencial: si falla, 502 y no se
+// registra nada (spec §8). El EFECTIVO no sale a Mercado Pago.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { requerirUsuario, obtenerMembresiaParaPago, registrarPago, crearPreferenciaDePago } = vi.hoisted(() => ({
@@ -20,11 +20,11 @@ const ID_PAGO = "ckpago00000000000000000001";
 const admin = { id: "admin-1", email: "a@gmail.com", nombre: "Admin", rol: "ADMIN" };
 const fechaFin = new Date("2026-10-30T00:00:00.000Z");
 
-const pagar = (medio: "EFECTIVO" | "MP") =>
+const pagar = (medio: "EFECTIVO" | "MP", extra: Record<string, unknown> = {}) =>
   POST(
     new Request("http://localhost/api/pagos", {
       method: "POST",
-      body: JSON.stringify({ membresiaId: ID_MEMBRESIA, monto: 15000, fecha: "2026-09-30", medio }),
+      body: JSON.stringify({ membresiaId: ID_MEMBRESIA, monto: 15000, fecha: "2026-09-30", medio, ...extra }),
     }),
   );
 
@@ -49,47 +49,55 @@ describe("POST /api/pagos", () => {
     expect((await respuesta.json()).checkoutUrl).toBeNull();
   });
 
-  it("MP con Mercado Pago andando → 201 con el link de pago", async () => {
+  it("MP con Mercado Pago andando → 201 con el link, y el pago se registra con el id que viajó a Mercado Pago", async () => {
+    crearPreferenciaDePago.mockResolvedValueOnce({ id: "pref-1", init_point: "https://mp.test/pref-1" });
     registrarPago.mockResolvedValueOnce({
       pago: { id: ID_PAGO, medio: "MP", estado: "PENDIENTE" }, renovada: false, fechaFin,
     });
-    crearPreferenciaDePago.mockResolvedValueOnce({ id: "pref-1", init_point: "https://mp.test/pref-1" });
 
     const respuesta = await pagar("MP");
 
     expect(respuesta.status).toBe(201);
-    expect(crearPreferenciaDePago).toHaveBeenCalledWith({ id: ID_PAGO, monto: 15000 });
     expect((await respuesta.json()).checkoutUrl).toBe("https://mp.test/pref-1");
+    const idEnviado = crearPreferenciaDePago.mock.calls[0]?.[0].id;
+    expect(idEnviado).toEqual(expect.any(String));
+    expect(crearPreferenciaDePago).toHaveBeenCalledWith({ id: idEnviado, monto: 15000 });
+    expect(registrarPago.mock.calls[0]?.[0]).toMatchObject({ id: idEnviado, medio: "MP" });
   });
 
-  it("MP con Mercado Pago caído → igual 201: el pago ya quedó registrado", async () => {
-    registrarPago.mockResolvedValueOnce({
-      pago: { id: ID_PAGO, medio: "MP", estado: "PENDIENTE" }, renovada: false, fechaFin,
-    });
+  it("MP con Mercado Pago caído → 502 y NO registra nada", async () => {
     crearPreferenciaDePago.mockResolvedValueOnce(null);
 
     const respuesta = await pagar("MP");
 
-    expect(respuesta.status).toBe(201);
-    expect(registrarPago).toHaveBeenCalledOnce();
-    const body = await respuesta.json();
-    expect(body.pago).toMatchObject({ id: ID_PAGO, estado: "PENDIENTE" });
-    expect(body.checkoutUrl).toBeNull();
+    expect(respuesta.status).toBe(502);
+    expect(registrarPago).not.toHaveBeenCalled();
+    expect((await respuesta.json()).error).toMatch(/No es un problema de los datos cargados/);
   });
 
-  it("a Mercado Pago se lo llama después de registrar el pago, nunca antes", async () => {
+  it("a Mercado Pago se lo llama ANTES de registrar el pago", async () => {
     const orden: string[] = [];
+    crearPreferenciaDePago.mockImplementationOnce(async () => {
+      orden.push("crearPreferenciaDePago");
+      return { id: "pref-1", init_point: "https://mp.test/pref-1" };
+    });
     registrarPago.mockImplementationOnce(async () => {
       orden.push("registrarPago");
       return { pago: { id: ID_PAGO, medio: "MP", estado: "PENDIENTE" }, renovada: false, fechaFin };
     });
-    crearPreferenciaDePago.mockImplementationOnce(async () => {
-      orden.push("crearPreferenciaDePago");
-      return null;
-    });
 
     await pagar("MP");
 
-    expect(orden).toEqual(["registrarPago", "crearPreferenciaDePago"]);
+    expect(orden).toEqual(["crearPreferenciaDePago", "registrarPago"]);
+  });
+
+  it("la refExterna del body se descarta: la escribe el webhook, no quien llama", async () => {
+    registrarPago.mockResolvedValueOnce({
+      pago: { id: ID_PAGO, medio: "EFECTIVO", estado: "APROBADO" }, renovada: true, fechaFin,
+    });
+
+    await pagar("EFECTIVO", { refExterna: "mp-123" });
+
+    expect(registrarPago.mock.calls[0]?.[0]).not.toHaveProperty("refExterna");
   });
 });

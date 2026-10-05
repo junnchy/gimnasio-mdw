@@ -47,6 +47,15 @@ describe("crearPreferenciaDePago", () => {
     expect(JSON.parse(String(init?.body)).external_reference).toBe(pago.id);
   });
 
+  it("con MP_API_URL le pega a esa URL en lugar de la API real (demo de la falla)", async () => {
+    vi.stubEnv("MP_ACCESS_TOKEN", "TEST-token");
+    vi.stubEnv("MP_API_URL", "https://10.255.255.1");
+    fetchFalso.mockRejectedValueOnce(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+
+    await expect(crearPreferenciaDePago(pago)).resolves.toBeNull();
+    expect(fetchFalso.mock.calls[0]?.[0]).toBe("https://10.255.255.1/checkout/preferences");
+  });
+
   it("Mercado Pago responde 500 → null, no lanza", async () => {
     vi.stubEnv("MP_ACCESS_TOKEN", "TEST-token");
     fetchFalso.mockResolvedValueOnce(new Response("error interno", { status: 500 }));

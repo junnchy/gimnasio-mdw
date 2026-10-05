@@ -3,7 +3,7 @@ import { aplicarEstadoDeMercadoPago } from "@/lib/db/pagos";
 import { notificacionMercadoPagoSchema } from "@/lib/schemas/mercadoPago";
 import { obtenerPagoDeMercadoPago } from "@/lib/servicios/mercadoPago";
 import { responderError } from "@/lib/errores";
-import { datosInvalidos, servicioExternoCaido } from "@/lib/http";
+import { servicioExternoCaido } from "@/lib/http";
 import { leerBody } from "@/lib/utils";
 
 /**
@@ -18,15 +18,19 @@ import { leerBody } from "@/lib/utils";
  *
  * Cómo lee Mercado Pago la respuesta: cualquier 2xx es "recibido, no
  * reintentes"; cualquier otra cosa, "reintentá más tarde". Por eso:
- * - lo que nunca va a cambiar (otro tipo de evento, un pago que no es nuestro)
- *   → 200, para que no insista;
- * - lo que se arregla solo (Mercado Pago o la base caídos) → 502/500, para que
- *   reintente. Es el "se reintenta cuando el servicio vuelve" de la spec.
+ * - lo que nunca va a cambiar (un body con otro formato, otro tipo de evento,
+ *   un pago que no es nuestro) → 200, para que no insista. Un 400 haría que
+ *   Mercado Pago reenvíe para siempre algo que nunca vamos a aceptar;
+ * - lo que puede andar en otro intento (Mercado Pago o la base caídos) →
+ *   502/500. Ese reenvío lo hace Mercado Pago, no nuestro sistema.
  */
 export async function POST(request: Request) {
   try {
     const notificacion = notificacionMercadoPagoSchema.safeParse(await leerBody(request));
-    if (!notificacion.success) return datosInvalidos(notificacion.error.flatten());
+    if (!notificacion.success) {
+      console.error("POST /api/pagos/webhook: notificación con formato inesperado", notificacion.error.flatten());
+      return NextResponse.json({ resultado: "IGNORADA" });
+    }
 
     if (notificacion.data.type !== "payment") {
       return NextResponse.json({ resultado: "IGNORADA" });
