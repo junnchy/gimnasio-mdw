@@ -4,6 +4,7 @@
  * Funciones puras: sin Prisma, sin Next, sin `new Date()` adentro.
  */
 import { veredicto, type Motivo, type Veredicto } from "@/lib/reglas";
+import type { EstadoMercadoPago } from "@/lib/schemas/mercadoPago";
 
 export type MedioPago = "EFECTIVO" | "MP";
 export type EstadoPago = "APROBADO" | "PENDIENTE" | "RECHAZADO";
@@ -61,4 +62,29 @@ export function puedeRegistrarPago(
   }
 
   return veredicto(motivos);
+}
+
+/**
+ * Webhook de Mercado Pago (spec §8): a qué estado pasa nuestro Pago según el
+ * estado real que informa Mercado Pago. `null` = no hay nada que cambiar.
+ *
+ * - Solo se mueve un pago MP que está PENDIENTE. APROBADO y RECHAZADO son
+ *   finales: Mercado Pago reenvía notificaciones, y la segunda no puede volver
+ *   a renovar la membresía.
+ * - approved → APROBADO; rejected / cancelled → RECHAZADO (H7: queda
+ *   constancia del intento).
+ * - Los estados intermedios (pending, in_process, …) no cambian nada: ya
+ *   estamos en PENDIENTE.
+ * - refunded / charged_back tampoco: qué hacer con una devolución no está en
+ *   la spec.
+ */
+export function transicionPorMercadoPago(datos: {
+  readonly medio: MedioPago;
+  readonly estadoActual: EstadoPago;
+  readonly estadoMercadoPago: EstadoMercadoPago;
+}): EstadoPago | null {
+  if (datos.medio !== "MP" || datos.estadoActual !== "PENDIENTE") return null;
+  if (datos.estadoMercadoPago === "approved") return "APROBADO";
+  if (datos.estadoMercadoPago === "rejected" || datos.estadoMercadoPago === "cancelled") return "RECHAZADO";
+  return null;
 }

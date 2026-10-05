@@ -53,10 +53,20 @@ se lo desactiva para conservar el historial.
 |---|---|---|---|
 | `GET /api/membresias/mia` | Devuelve estado y vencimiento propios | Socio | 401, 403, 404 |
 | `POST /api/membresias` | Asigna una membresía a un socio | Admin | 400, 401, 403, 404 |
-| `POST /api/pagos` | Registra un intento de pago | Admin | 400, 401, 403, 404, 409 |
+| `POST /api/pagos` | Registra un intento de pago | Admin | 400, 401, 403, 404, 409, 502 |
+| `POST /api/pagos/webhook` | Recibe la notificación de Mercado Pago y aplica el estado real del pago | Mercado Pago (sin sesión) | 500, 502 |
 
 Un pago aprobado crea el pago y renueva la membresía en una transacción. Un pago
 rechazado conserva el intento pero no activa la membresía.
+
+Para un pago MP, Mercado Pago es esencial (spec §8): primero se pide el link de
+cobro y recién después se registra el pago. Si Mercado Pago falla, responde 502
+sin tocar la base. El EFECTIVO no pasa por Mercado Pago.
+
+El webhook responde 200 con `"resultado": "IGNORADA"` a todo lo que nunca va a
+poder procesar (body con otro formato, otro tipo de evento, un pago que no es
+nuestro), para que Mercado Pago no lo reenvíe para siempre. Solo responde 502 o
+500 cuando la falla es pasajera.
 
 ## Clases y reservas
 
@@ -156,6 +166,8 @@ Cuando fallan varias reglas a la vez, vienen todas.
 | `POST /api/pagos` | `monto` negativo, `medio` fuera del enum o fecha inválida | Zod | 400 | Datos inválidos |
 | `POST /api/pagos` | La membresía no existe | Base | 404 | Membresía no encontrada |
 | `POST /api/pagos` | La membresía está CANCELADA (ADR 0002: cancelar es un hecho) | Regla `MEMBRESIA_CANCELADA` | 409 | La membresía está cancelada: hay que crear una nueva. |
+| `POST /api/pagos` | Medio MP y Mercado Pago no responde, tarda más de 5 s o rechaza la credencial. No se registra nada | Servicio externo | 502 | Mercado Pago no está disponible en este momento. No es un problema de los datos cargados: probá de nuevo en unos minutos o registrá el pago en efectivo. |
+| `POST /api/pagos/webhook` | Mercado Pago no responde o responde algo inesperado (Mercado Pago vuelve a mandar la notificación) | Servicio externo | 502 | No se pudo consultar el pago en Mercado Pago |
 
 ### Planes, clases, rutinas y ejercicios
 

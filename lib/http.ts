@@ -23,6 +23,14 @@ export function noEncontrado(mensaje: string) {
   return NextResponse.json({ error: mensaje }, { status: 404 });
 }
 
+/**
+ * 502: el servicio externo del que dependemos falló. No es culpa de quien
+ * llama; si es un webhook, el no-2xx hace que lo reintente más tarde.
+ */
+export function servicioExternoCaido(mensaje: string) {
+  return NextResponse.json({ error: mensaje }, { status: 502 });
+}
+
 export function prohibido(mensaje: string) {
   return NextResponse.json({ error: mensaje }, { status: 403 });
 }
