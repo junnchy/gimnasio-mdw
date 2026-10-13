@@ -31,6 +31,10 @@ tipografía, estados, tokens, aplicaciones y tono de voz.
 
 **Nunca** como texto: lima sobre blanco (1,32:1) ni acero sobre tinta (3,05:1).
 
+**Rojo de texto vs. rojo de relleno.** El token `--destructive` (botón e insignia destructivos, alertas) es `#A61F16` en claro y `#FF9E96` en oscuro: tiene que leerse también sobre su propio fondo tintado al pasar el cursor (`bg-destructive/15` en claro, `/25` en oscuro). `pulso-error` (`#C3271C`) queda para insignias rellenas con texto blanco (5,79:1).
+
+Los contrastes de los tokens y de las variantes destructivas los verifica `lib/contraste.test.ts` en el CI.
+
 ## Tipografía
 
 Space Grotesk (títulos, 500/700) · Inter (texto e interfaz) · JetBrains Mono (códigos y horarios).
