@@ -66,6 +66,13 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - Solo Tailwind. Nada de CSS suelto ni estilos inline salvo valores calculados en runtime.
 - Los componentes de UI base salen de shadcn/ui y se editan en `components/ui/`.
 
+### Marca (Pulso — `docs/marca/`)
+- **Los colores, radios y fuentes solo se escriben en `app/globals.css`.** Fuera de ese archivo no hay valores hex, `rgb()` ni `oklch()`: se usan los tokens (`bg-primary`, `text-muted-foreground`, `bg-pulso-lima`).
+- El logo se usa con `<Logo />` de `components/logo.tsx`; no se reescribe ni se cambia su tipografía o sus colores.
+- **Todo texto cumple contraste 4,5:1.** Prohibido: `text-pulso-lima` sobre fondo claro y `text-pulso-acero` sobre fondo oscuro.
+- Ningún estado se comunica solo con color: la insignia lleva color, ícono y palabra ("Vencida", "Sin cupo").
+- Los textos de la interfaz van en voseo ("Reservá", "Escaneá") y todo mensaje de error dice qué hacer.
+
 ### Git
 - Ramas: `feat/<descripcion-corta>`, `fix/<descripcion-corta>`.
 - Commits en imperativo y en español: "agrega validación de turnos superpuestos".
