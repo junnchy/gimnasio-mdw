@@ -9,6 +9,11 @@
  *
  * Contraste verificado (WCAG 2.1, spec §7): todo texto ≥ 4,5:1.
  * Prohibido como texto: lima sobre blanco (1,32:1) y acero sobre tinta (3,05:1).
+ *
+ * --destructive es el rojo para TEXTO (botón e insignia destructivos, alertas),
+ * más oscuro en claro y más claro en oscuro que pulso-error, para cumplir
+ * 4,5:1 también sobre su propio fondo tintado en hover. pulso-error queda
+ * para insignias rellenas con texto blanco.
  */
 
 @custom-variant dark (&:is(.dark *));
@@ -91,7 +96,7 @@
   --muted-foreground: #5b616b;
   --accent: #c8f031;
   --accent-foreground: #0e1013;
-  --destructive: #c3271c;
+  --destructive: #a61f16;
   --border: #d9dce1;
   --input: #d9dce1;
   --ring: #4d6b00;
@@ -128,7 +133,7 @@
   --muted-foreground: #9aa1ab;
   --accent: #c8f031;
   --accent-foreground: #0e1013;
-  --destructive: #ff6b5f;
+  --destructive: #ff9e96;
   --border: #2c3038;
   --input: #2c3038;
   --ring: #c8f031;
