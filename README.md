@@ -1,4 +1,6 @@
-# Gimnasio MDW 2026
+![Pulso](public/brand/pulso-horizontal-color.svg)
+
+# Pulso
 
 Sistema de administración de un gimnasio (socios, rutinas, dietas y turnos).
 TP integrador de Metodologías y Desarrollos Web — UAI Rosario.
