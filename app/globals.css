@@ -2,42 +2,68 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/*
+ * Tokens de diseño de Pulso (manual de marca v1.0, docs/marca/).
+ * Es el único lugar del proyecto donde se escribe un color o un radio:
+ * los componentes los nombran (bg-primary, text-muted-foreground, ring-ring).
+ *
+ * Contraste verificado (WCAG 2.1, spec §7): todo texto ≥ 4,5:1.
+ * Prohibido como texto: lima sobre blanco (1,32:1) y acero sobre tinta (3,05:1).
+ */
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, sans-serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-heading: var(--font-sans);
-  --font-sans: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Colores de marca y de estado: bg-pulso-lima, text-pulso-acero, … */
+  --color-pulso-tinta: #0e1013;
+  --color-pulso-grafito: #1c1f24;
+  --color-pulso-lima: #c8f031;
+  --color-pulso-lima-texto: #4d6b00;
+  --color-pulso-niebla: #e9ebee;
+  --color-pulso-acero: #5b616b;
+  --color-pulso-humo: #9aa1ab;
+  --color-pulso-exito: #1f7a3a;
+  --color-pulso-alerta: #f5a524;
+  --color-pulso-alerta-texto: #8a5300;
+  --color-pulso-error: #c3271c;
+  --color-pulso-error-oscuro: #ff6b5f;
+  --color-pulso-info: #2563eb;
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -47,73 +73,80 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Modo claro (por defecto) */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.75rem;
+
+  --background: #ffffff;
+  --foreground: #0e1013;
+  --card: #ffffff;
+  --card-foreground: #0e1013;
+  --popover: #ffffff;
+  --popover-foreground: #0e1013;
+  --primary: #0e1013;
+  --primary-foreground: #c8f031;
+  --secondary: #e9ebee;
+  --secondary-foreground: #0e1013;
+  --muted: #e9ebee;
+  --muted-foreground: #5b616b;
+  --accent: #c8f031;
+  --accent-foreground: #0e1013;
+  --destructive: #c3271c;
+  --border: #d9dce1;
+  --input: #d9dce1;
+  --ring: #4d6b00;
+
+  --chart-1: #0e1013;
+  --chart-2: #4d6b00;
+  --chart-3: #c8f031;
+  --chart-4: #5b616b;
+  --chart-5: #9aa1ab;
+
+  --sidebar: #e9ebee;
+  --sidebar-foreground: #0e1013;
+  --sidebar-primary: #0e1013;
+  --sidebar-primary-foreground: #c8f031;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #0e1013;
+  --sidebar-border: #d9dce1;
+  --sidebar-ring: #4d6b00;
 }
 
+/* Modo oscuro: la base de la marca */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0e1013;
+  --foreground: #ffffff;
+  --card: #1c1f24;
+  --card-foreground: #ffffff;
+  --popover: #1c1f24;
+  --popover-foreground: #ffffff;
+  --primary: #c8f031;
+  --primary-foreground: #0e1013;
+  --secondary: #1c1f24;
+  --secondary-foreground: #ffffff;
+  --muted: #1c1f24;
+  --muted-foreground: #9aa1ab;
+  --accent: #c8f031;
+  --accent-foreground: #0e1013;
+  --destructive: #ff6b5f;
+  --border: #2c3038;
+  --input: #2c3038;
+  --ring: #c8f031;
+
+  --chart-1: #c8f031;
+  --chart-2: #ffffff;
+  --chart-3: #9aa1ab;
+  --chart-4: #5b616b;
+  --chart-5: #2c3038;
+
+  --sidebar: #1c1f24;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #c8f031;
+  --sidebar-primary-foreground: #0e1013;
+  --sidebar-accent: #2c3038;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2c3038;
+  --sidebar-ring: #c8f031;
 }
 
 @layer base {
@@ -125,5 +158,10 @@
   }
   html {
     @apply font-sans;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading tracking-tight;
   }
 }
