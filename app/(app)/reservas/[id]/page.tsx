@@ -24,9 +24,9 @@ export default async function DetalleReserva({ params }: Props) {
 
   if (usuario.rol !== "SOCIO") {
     return (
-      <main className="mx-auto max-w-2xl p-8">
+      <div>
         <SoloSocios />
-      </main>
+      </div>
     );
   }
 
@@ -38,7 +38,7 @@ export default async function DetalleReserva({ params }: Props) {
   const fila = aFilaReserva(reserva);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <div>
       <VolverAReservas />
       <Card className="mt-6">
         <CardHeader>
@@ -61,6 +61,6 @@ export default async function DetalleReserva({ params }: Props) {
           </dl>
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }

@@ -35,7 +35,9 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 |---|---|
 | Una página | `app/(public)/` si es sin sesión, `app/(app)/` si requiere sesión |
 | Un endpoint | `app/api/<recurso>/route.ts` |
-| Un componente reutilizable | `components/` |
+| Un componente reutilizable del dominio | `components/` |
+| Un componente de UI base (botón, tarjeta, insignia) | `components/ui/`, traído con `npx shadcn@latest add` |
+| El estado de error de una pantalla | `error.tsx` al lado de su `page.tsx` |
 | Una consulta a la base | `lib/db/<entidad>.ts` |
 | Un schema de validación | `lib/schemas/<entidad>.ts` |
 | Un helper sin dependencias | `lib/utils.ts` |
@@ -63,6 +65,12 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - Las pantallas leen con `await` a `lib/db/`, nunca con `fetch` a la API propia, y la consulta lleva el id de la sesión.
 - Una pantalla con sesión chequea la sesión (`requerirUsuarioEnPantalla`) **antes** de cualquier `<Suspense>`. No usar `loading.tsx` en un segmento que redirige o llama a `notFound()`: el status sale 200 y la redirección o el 404 llegan tarde, dentro del stream.
 - Los estados de carga y de error se resuelven siempre; no dejar la pantalla en blanco.
+- **Las pantallas y sus direcciones salen del mapa de pantallas de `docs/spec.md` (§5).** No se inventan rutas: si falta una fila, se pregunta y se agrega al mapa antes de crear la ruta.
+- **La sesión se verifica en cada página, no en el layout.** Un layout no se vuelve a ejecutar en cada navegación del cliente y se renderiza en paralelo con la página: no autoriza nada. Toda página de `app/(app)/` llama a `requerirUsuarioEnPantalla("<su ruta>")`, que redirige a `/ingresar?callbackUrl=<su ruta>`, y cada consulta lleva el id de la sesión.
+- **Una pantalla que lee datos resuelve sus cinco estados:** cargando (`<Suspense>` con esqueleto), con datos, vacío, sin resultados y error (`error.tsx`). Ninguno queda en blanco.
+- **Vacío y sin resultados no dicen lo mismo.** "Todavía no tenés…" lo resuelve el servidor con `<SinDatos>`; "ninguno coincide…" lo resuelve el componente que tiene el filtro, porque es el único que sabe qué se eligió.
+- La pantalla de error no muestra el mensaje de la excepción: el detalle va a `console.error`.
+- Un 404 no menciona "permiso": "no existe" y "no es tuya" usan el mismo texto.
 
 ### Estilos
 - Solo Tailwind. Nada de CSS suelto ni estilos inline salvo valores calculados en runtime.

@@ -107,6 +107,38 @@ Registro de visita por QR (ingreso/egreso con lógica por estado):
 5. Las visitas ABIERTAS al cierre del día se marcan INCOMPLETA.
 6. El dato alimenta reportes de ocupación por franja horaria, horarios pico y frecuencia/duración de visita por socio.
 
+### El mapa de pantallas
+
+Qué pantalla realiza cada paso, con qué dirección y quién la puede abrir. Se completa **antes** de
+escribir la pantalla (o de pedírsela a un asistente): la dirección es el identificador de la
+pantalla, y una que se inventa sobre la marcha después no se puede cambiar sin romper los enlaces
+que ya se compartieron. Las filas marcadas **falta** son propuestas: se confirman antes de crear la ruta.
+
+| Paso | Pantalla | Dirección | Quién la ve |
+|---|---|---|---|
+| — | Ingreso | `/ingresar` | Cualquiera, **sin sesión** |
+| — | Inicio: lo que te corresponde | `/` | Con sesión. El rol cambia el contenido: el socio ve su membresía (H8) y sus reservas; profesor y admin, las clases programadas |
+| 1 | Escanear el QR de la puerta (H1, H2) | `/escanear` | SOCIO · **falta (clase 11)** |
+| 2–4 | — | — | No es una pantalla: son las reglas de `lib/visita.ts`. El resultado (ingreso, o egreso con la duración) se muestra en `/escanear` |
+| 5 | — | — | Proceso automático (`/api/visitas/cierre-diario`, H3), sin pantalla |
+| 6 | Reportes de ocupación | `/reportes` | ADMIN · **falta** |
+
+Fuera del flujo principal:
+
+| Pantalla | Dirección | Quién la ve |
+|---|---|---|
+| Mis reservas (H4, H5) | `/reservas` | SOCIO |
+| Detalle de una reserva | `/reservas/:id` | SOCIO, solo si es suya (si no, 404) |
+| Reservar una clase (H4) | `/clases` | SOCIO · **falta (clase 11)** |
+| Galería de componentes | `/sistema` | Con sesión (herramienta interna del equipo) |
+
+Lo que el mapa deja a la vista:
+
+- **Una sola pantalla no pide sesión**, `/ingresar`. Esa fila es la razón de que existan los grupos
+  de ruta `(public)` y `(app)`.
+- **Lo que falta son las pantallas que escriben** (escanear, reservar): van con formularios y
+  Server Actions en la clase 11.
+
 ## 6. Reglas de negocio
 
 Las restricciones que **no** son obvias y que la IA no puede adivinar. Estas son las que hay que revisar a mano.
