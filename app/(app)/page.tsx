@@ -10,7 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
  */
 export default function Home() {
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <div>
       <h1>
         <Logo className="h-10 w-auto" />
       </h1>
@@ -24,6 +24,6 @@ export default function Home() {
         El contrato y las pruebas manuales están en <code>docs/api.md</code> y{" "}
         <code>docs/api.http</code>.
       </p>
-    </main>
+    </div>
   );
 }
