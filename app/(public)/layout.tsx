@@ -15,18 +15,17 @@ import { Logo } from "@/components/logo";
 export default function LayoutPublico({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col px-4 py-10">
-      <header>
+      <main className="flex flex-1 flex-col justify-center gap-8">
         <Link
           href="/"
-          className="inline-block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="self-start rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <Logo className="h-9 w-auto" />
         </Link>
-      </header>
+        {children}
+      </main>
 
-      <main className="flex flex-1 flex-col justify-center py-10">{children}</main>
-
-      <footer className="text-xs text-muted-foreground">
+      <footer className="pt-10 text-xs text-muted-foreground">
         Pulso · TP de Metodologías y Desarrollos Web, UAI Rosario
       </footer>
     </div>

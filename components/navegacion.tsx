@@ -23,14 +23,14 @@ import { NOMBRE_ROL } from "@/lib/etiquetas";
  */
 export function Navegacion({ usuario }: { usuario: UsuarioSesion }) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b py-4">
+    <header className="relative flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b py-4">
       {/*
         Primero en el DOM y visible solo con el foco: quien navega con teclado
         salta el menú en cada pantalla en vez de recorrerlo entero.
       */}
       <a
         href="#contenido"
-        className="sr-only focus:not-sr-only focus:rounded-lg focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-0 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
       >
         Saltar al contenido
       </a>
