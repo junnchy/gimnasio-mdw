@@ -32,7 +32,10 @@ export default function ErrorDePantalla({
 
   return (
     <Alert variant="destructive">
-      <AlertTitle>No pudimos cargar esta pantalla</AlertTitle>
+      <AlertTitle>
+        {/* El título de la pantalla: cuando falla, esto es lo único que hay. */}
+        <h1>No pudimos cargar esta pantalla</h1>
+      </AlertTitle>
       <AlertDescription>
         <p>El problema es del sistema, no de lo que hiciste, y no se perdió ningún dato. Probá de nuevo; si sigue igual, avisá en recepción.</p>
         {error.digest ? (

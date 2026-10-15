@@ -66,7 +66,7 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - Una pantalla con sesión chequea la sesión (`requerirUsuarioEnPantalla`) **antes** de cualquier `<Suspense>`. No usar `loading.tsx` en un segmento que redirige o llama a `notFound()`: el status sale 200 y la redirección o el 404 llegan tarde, dentro del stream.
 - Los estados de carga y de error se resuelven siempre; no dejar la pantalla en blanco.
 - **Las pantallas y sus direcciones salen del mapa de pantallas de `docs/spec.md` (§5).** No se inventan rutas: si falta una fila, se pregunta y se agrega al mapa antes de crear la ruta.
-- **Redirigir al login desde un layout no es autorización.** Un layout no se vuelve a ejecutar en cada navegación del cliente: cada página verifica la sesión igual, y cada consulta sigue llevando el id de la sesión.
+- **La sesión se verifica en cada página, no en el layout.** Un layout no se vuelve a ejecutar en cada navegación del cliente y se renderiza en paralelo con la página: no autoriza nada. Toda página de `app/(app)/` llama a `requerirUsuarioEnPantalla("<su ruta>")`, que redirige a `/ingresar?callbackUrl=<su ruta>`, y cada consulta lleva el id de la sesión.
 - **Una pantalla que lee datos resuelve sus cinco estados:** cargando (`<Suspense>` con esqueleto), con datos, vacío, sin resultados y error (`error.tsx`). Ninguno queda en blanco.
 - **Vacío y sin resultados no dicen lo mismo.** "Todavía no tenés…" lo resuelve el servidor con `<SinDatos>`; "ninguno coincide…" lo resuelve el componente que tiene el filtro, porque es el único que sabe qué se eligió.
 - La pantalla de error no muestra el mensaje de la excepción: el detalle va a `console.error`.

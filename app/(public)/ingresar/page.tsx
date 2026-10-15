@@ -4,24 +4,25 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { obtenerUsuario, signIn } from "@/lib/auth";
-import { parametrosIngreso } from "@/lib/schemas/ingreso";
+import { parametrosIngreso, type CodigoErrorIngreso } from "@/lib/schemas/ingreso";
 
 export const metadata: Metadata = { title: "Ingresar" };
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 /**
- * Qué decirle a la persona según el código que manda Auth.js en `?error=`.
- * `AccessDenied` es el que sale cuando nuestro callback `signIn` rechaza la
- * cuenta (mail de Google sin verificar). El resto se agrupa en un mensaje
- * genérico: el detalle técnico queda en los logs, no en la pantalla.
+ * Qué decirle a la persona según el código que manda Auth.js en `?error=`
+ * (ya validado como unión literal en `lib/schemas/ingreso.ts`).
+ * `AccessDenied` sale cuando nuestro callback `signIn` rechaza la cuenta
+ * (mail de Google sin verificar). El resto se agrupa en un mensaje genérico:
+ * el detalle técnico queda en los logs, no en la pantalla.
  */
-function mensajeDeError(codigo: string): string {
-  if (codigo === "AccessDenied") {
-    return "Esa cuenta de Google no está habilitada para entrar. Probá con otra cuenta o consultá en recepción.";
-  }
-  return "No pudimos iniciar sesión. Probá de nuevo en un momento.";
-}
+const MENSAJE_DE_ERROR: Record<CodigoErrorIngreso, string> = {
+  AccessDenied: "Esa cuenta de Google no está habilitada para entrar. Probá con otra cuenta o consultá en recepción.",
+  Configuration: "No pudimos iniciar sesión. Probá de nuevo en un momento.",
+  Verification: "No pudimos iniciar sesión. Probá de nuevo en un momento.",
+  Default: "No pudimos iniciar sesión. Probá de nuevo en un momento.",
+};
 
 /**
  * /ingresar, la puerta de entrada (clase 10).
@@ -45,7 +46,7 @@ export default async function Ingresar({ searchParams }: Props) {
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>No pudiste entrar</AlertTitle>
-          <AlertDescription>{mensajeDeError(error)}</AlertDescription>
+          <AlertDescription>{MENSAJE_DE_ERROR[error]}</AlertDescription>
         </Alert>
       ) : null}
 

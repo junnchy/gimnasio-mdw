@@ -14,11 +14,11 @@ export const metadata: Metadata = { title: "Inicio" };
  *   cargando        <Suspense> con EsqueletoInicio (no loading.tsx: ver ahí por qué)
  *   con datos       PanelSocio / PanelClases
  *   vacío           <SinDatos>, lo decide el servidor
- *   sin resultados  FiltroReservas, el único que sabe qué filtro se eligió
+ *   sin resultados  FiltroReservas / FiltroClases, los únicos que saben qué filtro se eligió
  *   error           app/(app)/error.tsx, con "Reintentar"
  *
- * El layout de (app) ya redirige sin sesión, pero esta página verifica igual:
- * la redirección del layout es experiencia de uso, no autorización.
+ * Como toda página de (app), verifica la sesión ella misma y antes del
+ * <Suspense>: sin sesión, 307 a /ingresar?callbackUrl=/.
  */
 export default async function Inicio() {
   const usuario = await requerirUsuarioEnPantalla("/");
@@ -37,7 +37,7 @@ export default async function Inicio() {
         {usuario.rol === "SOCIO" ? (
           <PanelSocio socioId={usuario.id} />
         ) : (
-          <PanelClases usuarioId={usuario.id} />
+          <PanelClases usuarioId={usuario.id} esProfesor={usuario.rol === "PROFESOR"} />
         )}
       </Suspense>
     </div>

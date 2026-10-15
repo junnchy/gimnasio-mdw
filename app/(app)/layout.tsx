@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Navegacion } from "@/components/navegacion";
 import { obtenerUsuario } from "@/lib/auth";
 
@@ -9,23 +8,29 @@ import { obtenerUsuario } from "@/lib/auth";
  * es que ahora comparten una barra que sabe quién sos.
  *
  * ---------------------------------------------------------------------------
- * ESTA REDIRECCIÓN NO ES UNA MEDIDA DE SEGURIDAD
+ * ACÁ NO SE VERIFICA LA SESIÓN, Y ES A PROPÓSITO
  * ---------------------------------------------------------------------------
- * Evita que alguien sin sesión vea una pantalla vacía y rota: es experiencia
- * de uso. Un layout no se vuelve a ejecutar en cada navegación del lado del
- * cliente, así que cada página de abajo SIGUE verificando la sesión
- * (`requerirUsuarioEnPantalla`) y cada consulta sigue llevando el id de la
- * sesión adentro, como desde la clase 6.
+ * Un layout no es un lugar confiable para autorizar: no se vuelve a ejecutar
+ * en cada navegación del cliente, y Next.js renderiza layout y página en
+ * paralelo. La verificación vive en CADA página (`requerirUsuarioEnPantalla`),
+ * y cada consulta sigue llevando el id de la sesión adentro, como desde la
+ * clase 6.
  *
  *   la UI decide qué MOSTRAR;  el servidor decide qué PERMITIR
  *
- * Como esto corre antes de cualquier <Suspense>, sin sesión la respuesta es
- * un 307 de verdad, no una redirección metida en el medio del stream.
+ * Tampoco redirige al login: el layout no sabe en qué dirección está, así que
+ * su redirección perdería el `callbackUrl` y quien abrió un link a una
+ * reserva terminaría en el inicio después de entrar. La página sí lo sabe:
+ * redirige a `/ingresar?callbackUrl=<su ruta>` con un 307 real, porque lo hace
+ * antes de cualquier <Suspense>.
+ *
+ * Sin sesión, entonces, el layout no dibuja la barra (no hay a quién
+ * mostrarle "Salir") y deja que la página redirija.
  */
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const usuario = await obtenerUsuario();
 
-  if (!usuario) redirect("/ingresar");
+  if (!usuario) return children;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 sm:px-6">
