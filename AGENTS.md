@@ -59,7 +59,9 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 
 ### React / Next
 - Los componentes son Server Components por defecto. `"use client"` solo si hay estado, efectos o eventos del navegador.
-- Un componente por archivo, en PascalCase. Los archivos de utilidades, en camelCase.
+- Un componente por archivo: el componente en PascalCase y el archivo en kebab-case (`FiltroReservas` en `components/filtro-reservas.tsx`). Los archivos de utilidades, en camelCase.
+- Las pantallas leen con `await` a `lib/db/`, nunca con `fetch` a la API propia, y la consulta lleva el id de la sesión.
+- Una pantalla con sesión chequea la sesión (`requerirUsuarioEnPantalla`) **antes** de cualquier `<Suspense>`. No usar `loading.tsx` en un segmento que redirige o llama a `notFound()`: el status sale 200 y la redirección o el 404 llegan tarde, dentro del stream.
 - Los estados de carga y de error se resuelven siempre; no dejar la pantalla en blanco.
 
 ### Estilos

@@ -17,6 +17,7 @@
  * middleware, hay que separar la configuración de Auth.js en un archivo sin
  * Prisma (`auth.config.ts`) y que el middleware importe solo ese.
  */
+import { redirect } from "next/navigation";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 // Sin este import TypeScript no encuentra el módulo `next-auth/jwt` para la
@@ -173,6 +174,24 @@ export async function obtenerUsuario(): Promise<UsuarioSesion | null> {
     nombre: sesion.user.name ?? sesion.user.email,
     rol: sesion.user.rol,
   };
+}
+
+/**
+ * Para pantallas (clase 8): el usuario de la sesión, o se redirige al login.
+ *
+ * Es la misma regla que el 401 de `requerirUsuario`, traducida para una
+ * persona: un programa recibe un status, una persona tiene que poder
+ * iniciar sesión. `callbackUrl` la devuelve a la pantalla que quería ver.
+ *
+ * El rol NO se chequea acá: cada pantalla decide qué mostrar si el rol no
+ * alcanza. Lo que no se negocia es que la consulta lleve el id de la sesión.
+ */
+export async function requerirUsuarioEnPantalla(ruta: string): Promise<UsuarioSesion> {
+  const usuario = await obtenerUsuario();
+
+  if (!usuario) redirect(`/api/auth/signin?callbackUrl=${encodeURIComponent(ruta)}`);
+
+  return usuario;
 }
 
 /**

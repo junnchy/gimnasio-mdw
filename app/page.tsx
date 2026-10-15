@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { buttonVariants } from "@/components/ui/button";
 
 /**
  * Home del proyecto.
@@ -15,6 +17,9 @@ export default function Home() {
       <p className="mt-4 text-muted-foreground">
         El ritmo de tu gimnasio: membresías, clases, rutinas y visitas por QR.
       </p>
+      <Link href="/reservas" className={buttonVariants({ className: "mt-6" })}>
+        Mis reservas
+      </Link>
       <p className="mt-8 text-sm text-muted-foreground">
         El contrato y las pruebas manuales están en <code>docs/api.md</code> y{" "}
         <code>docs/api.http</code>.
