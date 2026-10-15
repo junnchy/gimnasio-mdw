@@ -1,29 +1,45 @@
-import Link from "next/link";
-import { Logo } from "@/components/logo";
-import { buttonVariants } from "@/components/ui/button";
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { EsqueletoInicio } from "@/components/esqueleto-inicio";
+import { PanelClases } from "@/components/panel-clases";
+import { PanelSocio } from "@/components/panel-socio";
+import { requerirUsuarioEnPantalla } from "@/lib/auth";
+
+export const metadata: Metadata = { title: "Inicio" };
 
 /**
- * Home del proyecto.
+ * El inicio: "lo que te corresponde" según el rol (clase 10, mapa de
+ * pantallas). Es la pantalla principal y resuelve sus cinco estados:
  *
- * Portada de Pulso (Server Component). El resto de las pantallas
- * se construye en las clases siguientes según la spec.
+ *   cargando        <Suspense> con EsqueletoInicio (no loading.tsx: ver ahí por qué)
+ *   con datos       PanelSocio / PanelClases
+ *   vacío           <SinDatos>, lo decide el servidor
+ *   sin resultados  FiltroReservas, el único que sabe qué filtro se eligió
+ *   error           app/(app)/error.tsx, con "Reintentar"
+ *
+ * El layout de (app) ya redirige sin sesión, pero esta página verifica igual:
+ * la redirección del layout es experiencia de uso, no autorización.
  */
-export default function Home() {
+export default async function Inicio() {
+  const usuario = await requerirUsuarioEnPantalla("/");
+  const nombre = usuario.nombre.includes("@") ? usuario.nombre : usuario.nombre.split(" ")[0];
+
   return (
-    <div>
-      <h1>
-        <Logo className="h-10 w-auto" />
-      </h1>
-      <p className="mt-4 text-muted-foreground">
-        El ritmo de tu gimnasio: membresías, clases, rutinas y visitas por QR.
-      </p>
-      <Link href="/reservas" className={buttonVariants({ className: "mt-6" })}>
-        Mis reservas
-      </Link>
-      <p className="mt-8 text-sm text-muted-foreground">
-        El contrato y las pruebas manuales están en <code>docs/api.md</code> y{" "}
-        <code>docs/api.http</code>.
-      </p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold break-words">Hola, {nombre}</h1>
+        <p className="mt-1 text-muted-foreground">
+          {usuario.rol === "SOCIO" ? "Tu membresía y tus reservas." : "Las próximas clases del gimnasio."}
+        </p>
+      </div>
+
+      <Suspense fallback={<EsqueletoInicio />}>
+        {usuario.rol === "SOCIO" ? (
+          <PanelSocio socioId={usuario.id} />
+        ) : (
+          <PanelClases usuarioId={usuario.id} />
+        )}
+      </Suspense>
     </div>
   );
 }
