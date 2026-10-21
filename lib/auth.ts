@@ -112,6 +112,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
    */
   session: { strategy: "jwt" },
 
+  /**
+   * Clase 10: el login es una pantalla nuestra, con la marca, y no la página
+   * genérica de Auth.js. Si Auth.js rechaza un ingreso (por ejemplo, el
+   * `signIn` de abajo devuelve false), también vuelve a /ingresar, con
+   * `?error=<código>` para que la pantalla explique qué pasó.
+   */
+  pages: { signIn: "/ingresar", error: "/ingresar" },
+
   callbacks: {
     /**
      * Corre ANTES que `jwt`: si devuelve false, Auth.js corta el login y no se
@@ -181,7 +189,8 @@ export async function obtenerUsuario(): Promise<UsuarioSesion | null> {
  *
  * Es la misma regla que el 401 de `requerirUsuario`, traducida para una
  * persona: un programa recibe un status, una persona tiene que poder
- * iniciar sesión. `callbackUrl` la devuelve a la pantalla que quería ver.
+ * iniciar sesión. `callbackUrl` la devuelve a la pantalla que quería ver
+ * (/ingresar solo acepta rutas internas, ver `lib/schemas/ingreso.ts`).
  *
  * El rol NO se chequea acá: cada pantalla decide qué mostrar si el rol no
  * alcanza. Lo que no se negocia es que la consulta lleve el id de la sesión.
@@ -189,7 +198,7 @@ export async function obtenerUsuario(): Promise<UsuarioSesion | null> {
 export async function requerirUsuarioEnPantalla(ruta: string): Promise<UsuarioSesion> {
   const usuario = await obtenerUsuario();
 
-  if (!usuario) redirect(`/api/auth/signin?callbackUrl=${encodeURIComponent(ruta)}`);
+  if (!usuario) redirect(`/ingresar?callbackUrl=${encodeURIComponent(ruta)}`);
 
   return usuario;
 }

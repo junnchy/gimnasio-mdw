@@ -1,4 +1,5 @@
 import { FiltroReservas } from "@/components/filtro-reservas";
+import { SinDatos } from "@/components/sin-datos";
 import { listarReservasDeSocio } from "@/lib/db/reservas";
 import { aFilaReserva } from "@/lib/filaReserva";
 
@@ -12,11 +13,16 @@ import { aFilaReserva } from "@/lib/filaReserva";
 export async function ListadoReservas({ socioId }: { socioId: string }) {
   const reservas = (await listarReservasDeSocio(socioId)).map(aFilaReserva);
 
+  // Vacío: lo decide el servidor, que sabe que no hay ninguna. "Sin
+  // resultados" (hay, pero el filtro no encontró) lo resuelve FiltroReservas.
   if (reservas.length === 0) {
     return (
-      <p className="mt-6 text-muted-foreground">
-        Todavía no tenés reservas. Cuando reserves una clase, la vas a ver acá.
-      </p>
+      <div className="mt-6">
+        <SinDatos
+          titulo="Todavía no tenés reservas"
+          detalle="Cuando reserves una clase, la vas a ver acá con su horario y su estado."
+        />
+      </div>
     );
   }
 

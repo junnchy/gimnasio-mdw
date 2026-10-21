@@ -11,6 +11,21 @@ export async function listarClases(limite: number = LIMITE_POR_DEFECTO) {
   });
 }
 
+/**
+ * Las clases que todavía no empezaron, la más próxima primero (clase 10: el
+ * inicio de profesor y admin). Filtra en la base y no en la pantalla: con
+ * `listarClases` y un filtro en memoria, 50 clases viejas dejarían la lista
+ * vacía aunque hubiera clases mañana.
+ */
+export async function listarProximasClases(desde: Date, limite: number = LIMITE_POR_DEFECTO) {
+  return prisma.clase.findMany({
+    where: { inicio: { gte: desde } },
+    take: limite,
+    orderBy: { inicio: "asc" },
+    include: { profesor: { select: { id: true, nombre: true } }, _count: { select: { reservas: { where: { estado: "CONFIRMADA" } } } } },
+  });
+}
+
 export async function crearClase(datos: Omit<Clase, "profesorId">, profesorId: string) {
   return prisma.clase.create({ data: { ...datos, profesorId } });
 }

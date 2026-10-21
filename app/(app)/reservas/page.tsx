@@ -16,7 +16,7 @@ export default async function MisReservas() {
   const usuario = await requerirUsuarioEnPantalla("/reservas");
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <div>
       <h1 className="text-2xl font-bold">Mis reservas</h1>
       {usuario.rol === "SOCIO" ? (
         <Suspense fallback={<EsqueletoReservas />}>
@@ -27,6 +27,6 @@ export default async function MisReservas() {
           <SoloSocios />
         </div>
       )}
-    </main>
+    </div>
   );
 }
