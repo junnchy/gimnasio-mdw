@@ -14,6 +14,12 @@ import { z } from "zod";
  * (descarta tabs y saltos de línea, y trata "\" como "/"). Por eso la ruta se
  * resuelve como lo haría el navegador y se exige que siga en nuestro origen.
  *
+ * También se acepta una URL ABSOLUTA si es de nuestro propio origen: es lo
+ * que manda Auth.js cuando el que redirige es él (por ejemplo, desde
+ * /api/auth/signin). Se compara contra el origen del propio request y a
+ * `redirect()` solo le llega la ruta (sin el dominio), así que aunque alguien
+ * falseara el header Host, la redirección no puede salir del sitio.
+ *
  * `error` es el código que manda Auth.js cuando rechaza un ingreso. Es una
  * unión literal, como todo estado: un código desconocido o armado a mano se
  * trata como "Default" (mensaje genérico).
@@ -23,32 +29,52 @@ import { z } from "zod";
  */
 const ORIGEN_DE_PRUEBA = "http://pulso.invalid";
 
-function esRutaInterna(ruta: string): boolean {
-  if (!ruta.startsWith("/")) return false;
+/**
+ * La ruta interna normalizada (pathname + query + hash), o undefined si el
+ * valor lleva a otro sitio. Normalizada quiere decir sin tabs y con "/" en
+ * vez de "\": a redirect() nunca le llega el texto tal como vino en la URL.
+ */
+export function aRutaInterna(valor: string, origenPropio?: string): string | undefined {
+  let url: URL;
   try {
-    return new URL(ruta, ORIGEN_DE_PRUEBA).origin === ORIGEN_DE_PRUEBA;
+    if (valor.startsWith("/")) {
+      url = new URL(valor, ORIGEN_DE_PRUEBA);
+      if (url.origin !== ORIGEN_DE_PRUEBA) return undefined;
+    } else {
+      if (!origenPropio) return undefined;
+      url = new URL(valor);
+      if (url.origin !== origenPropio) return undefined;
+    }
   } catch {
-    return false;
+    return undefined;
   }
+  return `${url.pathname}${url.search}${url.hash}`;
 }
-
-// Además de validar, se devuelve la ruta YA normalizada (sin tabs, con "/" en
-// vez de "\"): a redirect() nunca le llega el texto tal como vino en la URL.
-const rutaInterna = z
-  .string()
-  .max(200)
-  .refine(esRutaInterna, { message: "ruta externa" })
-  .transform((ruta) => {
-    const url = new URL(ruta, ORIGEN_DE_PRUEBA);
-    return `${url.pathname}${url.search}${url.hash}`;
-  });
 
 export const codigoErrorIngreso = z.enum(["AccessDenied", "Configuration", "Verification", "Default"]);
 export type CodigoErrorIngreso = z.infer<typeof codigoErrorIngreso>;
 
-export const parametrosIngreso = z.object({
-  callbackUrl: rutaInterna.optional().catch(undefined),
-  error: codigoErrorIngreso.optional().catch("Default"),
-});
+/** El schema de /ingresar. `origenPropio` es el origen del request (ej. "https://gimnasio-mdw.vercel.app"). */
+export function crearParametrosIngreso(origenPropio?: string) {
+  return z.object({
+    callbackUrl: z
+      .string()
+      .max(300)
+      .transform((valor, ctx) => {
+        const ruta = aRutaInterna(valor, origenPropio);
+        if (ruta === undefined) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ruta externa" });
+          return z.NEVER;
+        }
+        return ruta;
+      })
+      .optional()
+      .catch(undefined),
+    error: codigoErrorIngreso.optional().catch("Default"),
+  });
+}
+
+/** Sin origen conocido: solo se aceptan rutas relativas. */
+export const parametrosIngreso = crearParametrosIngreso();
 
 export type ParametrosIngreso = z.infer<typeof parametrosIngreso>;

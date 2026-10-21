@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { obtenerUsuario, signIn } from "@/lib/auth";
-import { parametrosIngreso, type CodigoErrorIngreso } from "@/lib/schemas/ingreso";
+import { crearParametrosIngreso, type CodigoErrorIngreso } from "@/lib/schemas/ingreso";
 
 export const metadata: Metadata = { title: "Ingresar" };
 
@@ -33,7 +34,14 @@ const MENSAJE_DE_ERROR: Record<CodigoErrorIngreso, string> = {
  */
 export default async function Ingresar({ searchParams }: Props) {
   // Entrada externa: se valida con Zod. Un valor raro se ignora, no rompe.
-  const resultado = parametrosIngreso.safeParse(await searchParams);
+  // Nuestro origen, para aceptar el callbackUrl absoluto que manda Auth.js.
+  // Solo sirve para comparar: a redirect() le llega siempre una ruta relativa.
+  const encabezados = await headers();
+  const host = encabezados.get("x-forwarded-host") ?? encabezados.get("host");
+  const protocolo = encabezados.get("x-forwarded-proto") ?? "http";
+  const origenPropio = host ? `${protocolo}://${host}` : undefined;
+
+  const resultado = crearParametrosIngreso(origenPropio).safeParse(await searchParams);
   const { callbackUrl, error } = resultado.success ? resultado.data : {};
   const destino = callbackUrl ?? "/";
 
