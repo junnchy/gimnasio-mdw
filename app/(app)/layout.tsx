@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Navegacion } from "@/components/navegacion";
+import { PieDePagina } from "@/components/pie-de-pagina";
 import { obtenerUsuario } from "@/lib/auth";
 
 /**
@@ -41,12 +41,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         {children}
       </main>
 
-      <footer className="flex flex-wrap justify-between gap-2 border-t py-4 text-xs text-muted-foreground">
-        <span>Pulso · TP de Metodologías y Desarrollos Web, UAI Rosario</span>
-        <Link href="/sistema" className="underline-offset-4 hover:text-foreground hover:underline">
-          Sistema visual
-        </Link>
-      </footer>
+      <PieDePagina />
     </div>
   );
 }

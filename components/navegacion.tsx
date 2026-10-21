@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { EnlaceNavegacion } from "@/components/enlace-navegacion";
-import { Logo } from "@/components/logo";
+import { EnlaceLogo } from "@/components/enlace-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { signOut, type UsuarioSesion } from "@/lib/auth";
@@ -36,13 +35,7 @@ export function Navegacion({ usuario }: { usuario: UsuarioSesion }) {
       </a>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Link
-          href="/"
-          aria-label="Pulso, ir al inicio"
-          className="rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <Logo className="h-7 w-auto" />
-        </Link>
+        <EnlaceLogo />
 
         <nav aria-label="Secciones">
           <ul className="flex gap-1">

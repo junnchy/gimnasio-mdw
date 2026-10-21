@@ -130,7 +130,7 @@ Fuera del flujo principal:
 | Mis reservas (H4, H5) | `/reservas` | SOCIO |
 | Detalle de una reserva | `/reservas/:id` | SOCIO, solo si es suya (si no, 404) |
 | Reservar una clase (H4) | `/clases` | SOCIO · **falta (clase 11)** |
-| Galería de componentes | `/sistema` | Con sesión (herramienta interna del equipo) |
+| Galería de componentes | `/sistema` | Con sesión. Herramienta del equipo: no está enlazada en la interfaz, se abre por la dirección |
 
 Lo que el mapa deja a la vista:
 

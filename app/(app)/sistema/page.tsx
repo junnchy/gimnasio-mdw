@@ -35,6 +35,7 @@ const FILAS_DE_MUESTRA: FilaReserva[] = [
  * membresía VENCIDA, una clase sin cupo, un nombre larguísimo.
  *
  * Es una herramienta interna del equipo, pero va en (app): también pide sesión.
+ * No está enlazada en la interfaz: se abre escribiendo /sistema.
  * Los enlaces de las filas de muestra llevan a un 404, como corresponde.
  */
 export default async function Sistema() {
