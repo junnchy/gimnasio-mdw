@@ -287,6 +287,11 @@ Content-Type: application/json
 ### cierre diario sin el secreto → 401
 POST {{base}}/api/visitas/cierre-diario
 
+### cierre diario como lo llama Vercel Cron (GET + Bearer) → 200 con { visitasCerradas }
+# Descomentar tras definir @cronSecret.
+GET {{base}}/api/visitas/cierre-diario
+# Authorization: Bearer {{cronSecret}}
+
 ### mis visitas, con duración calculada → 200
 GET {{base}}/api/visitas
 Cookie: {{sesionSocio}}

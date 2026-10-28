@@ -91,7 +91,7 @@ una confirmada de una clase ya dictada.
 |---|---|---|---|
 | `GET /api/visitas` | Lista visitas propias | Socio | 400, 401, 403 |
 | `POST /api/visitas/escaneos` | Abre o cierra la visita según exista una abierta | Socio | 400, 401, 403, 409 |
-| `POST /api/visitas/cierre-diario` | Marca incompletas las visitas abiertas del día | Proceso programado con `x-cron-secret` | 401 |
+| `GET` y `POST /api/visitas/cierre-diario` | Marca incompletas las visitas abiertas del día (H3). Lo corre Vercel Cron todos los días a las 00:30 de Argentina (`vercel.json`) | Proceso programado: `Authorization: Bearer <CRON_SECRET>` (Vercel Cron) o `x-cron-secret` (prueba manual) | 401 |
 
 El escaneo recibe el token QR, no el `socioId`: el socio siempre sale de la
 sesión. Devuelve `409` para membresía vencida, QR inválido o un segundo escaneo
@@ -135,7 +135,7 @@ Cuando fallan varias reglas a la vez, vienen todas.
 | `POST /api/visitas/escaneos` | H1: la membresía está VENCIDA o CANCELADA **y el escaneo es un ingreso**. Al egreso no aplica: H2 no le pone condición de membresía, y a un socio que está adentro hay que dejarlo salir | Regla `MEMBRESIA_INACTIVA` | 409 | Membresía vencida: no se puede registrar el ingreso. |
 | `POST /api/visitas/escaneos` | H2: segundo escaneo antes de los 60 segundos | Regla `ESCANEO_DUPLICADO` | 409 | Escaneo repetido: esperá unos segundos. |
 | `POST /api/visitas/escaneos` | Dos escaneos simultáneos pasan el debounce y chocan con el único parcial | Base `VISITA_ABIERTA_DUPLICADA` | 409 | Ya tenés una visita abierta. |
-| `POST /api/visitas/cierre-diario` | H3: falta o no coincide `x-cron-secret` | Sesión | 401 | No autorizado |
+| `GET`/`POST /api/visitas/cierre-diario` | H3: falta o no coincide el secreto del cron (`Authorization: Bearer` o `x-cron-secret`) | Sesión | 401 | No autorizado |
 
 ### Reservas
 
