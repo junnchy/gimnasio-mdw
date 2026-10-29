@@ -91,7 +91,7 @@ una confirmada de una clase ya dictada.
 |---|---|---|---|
 | `GET /api/visitas` | Lista visitas propias | Socio | 400, 401, 403 |
 | `POST /api/visitas/escaneos` | Abre o cierra la visita según exista una abierta | Socio | 400, 401, 403, 409 |
-| `GET` y `POST /api/visitas/cierre-diario` | Marca incompletas las visitas abiertas del día (H3). Lo corre Vercel Cron todos los días a las 00:30 de Argentina (`vercel.json`) | Proceso programado: `Authorization: Bearer <CRON_SECRET>` (Vercel Cron) o `x-cron-secret` (prueba manual) | 401 |
+| `GET` y `POST /api/visitas/cierre-diario` | Marca incompletas las visitas abiertas del día (H3). Lo corre Vercel Cron una vez por día, después de la medianoche de Argentina (`vercel.json`, `30 3 * * *` UTC). En el plan Hobby la precisión es de una hora: corre en algún momento entre las 00:00 y las 00:59 de Argentina, siempre ya en el día siguiente | Proceso programado: `Authorization: Bearer <CRON_SECRET>` (Vercel Cron) o `x-cron-secret` (prueba manual) | 401 |
 
 El escaneo recibe el token QR, no el `socioId`: el socio siempre sale de la
 sesión. Devuelve `409` para membresía vencida, QR inválido o un segundo escaneo
