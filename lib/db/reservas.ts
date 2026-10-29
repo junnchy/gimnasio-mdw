@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
 
 const LIMITE_POR_DEFECTO = 50;
@@ -14,8 +15,8 @@ export async function listarReservasDeSocio(socioId: string, limite: number = LI
  * La clase con su ocupación, tal como la necesita `puedeReservar`: solo se
  * cuentan las reservas CONFIRMADAS, porque una CANCELADA libera cupo (spec §6).
  */
-export async function claseParaReservar(claseId: string) {
-  const clase = await prisma.clase.findUnique({
+export async function claseParaReservar(claseId: string, db: Prisma.TransactionClient = prisma) {
+  const clase = await db.clase.findUnique({
     where: { id: claseId },
     select: {
       id: true, nombre: true, inicio: true, duracionMin: true, cupoMaximo: true,
@@ -34,21 +35,28 @@ export async function claseParaReservar(claseId: string) {
 }
 
 /** Las reservas CONFIRMADAS del socio, para detectar solapamiento de horario (H4). */
-export async function reservasVigentesDelSocio(socioId: string) {
-  const reservas = await prisma.reserva.findMany({
-    where: { socioId, estado: "CONFIRMADA" },
-    take: LIMITE_RESERVAS_VIGENTES,
-    select: { clase: { select: { nombre: true, inicio: true, duracionMin: true } } },
-  });
-  return reservas.map(({ clase }) => ({
-    claseNombre: clase.nombre,
-    inicio: clase.inicio,
-    duracionMin: clase.duracionMin,
-  }));
+export async function reservasVigentesDelSocio(socioId: string, db: Prisma.TransactionClient = prisma) {
+  // Páginas acotadas: no truncar las reglas al llegar a la reserva 100.
+  const reservas = [];
+  let cursor: string | undefined;
+  do {
+    const pagina = await db.reserva.findMany({
+      where: { socioId, estado: "CONFIRMADA" },
+      take: LIMITE_RESERVAS_VIGENTES,
+      orderBy: { id: "asc" },
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select: { id: true, clase: { select: { nombre: true, inicio: true, duracionMin: true } } },
+    });
+    reservas.push(...pagina.map(({ clase }) => ({
+      claseNombre: clase.nombre, inicio: clase.inicio, duracionMin: clase.duracionMin,
+    })));
+    cursor = pagina.length === LIMITE_RESERVAS_VIGENTES ? pagina.at(-1)?.id : undefined;
+  } while (cursor);
+  return reservas;
 }
 
-export async function crearReserva(claseId: string, socioId: string) {
-  return prisma.reserva.create({ data: { claseId, socioId } });
+export async function crearReserva(claseId: string, socioId: string, db: Prisma.TransactionClient = prisma) {
+  return db.reserva.create({ data: { claseId, socioId } });
 }
 
 /**
@@ -56,8 +64,8 @@ export async function crearReserva(claseId: string, socioId: string) {
  * WHERE). Una reserva ajena devuelve null igual que una inexistente, y el
  * handler responde 404 en los dos casos: no se confirma que el id existe.
  */
-export async function obtenerReservaDeSocio(id: string, socioId: string) {
-  return prisma.reserva.findFirst({ where: { id, socioId }, include: { clase: true } });
+export async function obtenerReservaDeSocio(id: string, socioId: string, db: Prisma.TransactionClient = prisma) {
+  return db.reserva.findFirst({ where: { id, socioId }, include: { clase: true } });
 }
 
 /**
@@ -69,12 +77,12 @@ export async function obtenerReserva(id: string) {
   return prisma.reserva.findUnique({ where: { id }, include: { clase: true } });
 }
 
-export async function cancelarReserva(id: string, socioId: string) {
-  const { count } = await prisma.reserva.updateMany({
+export async function cancelarReserva(id: string, socioId: string, db: Prisma.TransactionClient = prisma) {
+  const { count } = await db.reserva.updateMany({
     where: { id, socioId, estado: "CONFIRMADA" },
     data: { estado: "CANCELADA" },
   });
-  return count === 0 ? null : prisma.reserva.findUnique({ where: { id } });
+  return count === 0 ? null : db.reserva.findUnique({ where: { id } });
 }
 
 export async function marcarAsistencia(id: string, profesorId: string) {

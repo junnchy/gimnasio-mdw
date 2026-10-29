@@ -1,54 +1,21 @@
 import { NextResponse } from "next/server";
-import { abrirVisita, cerrarVisita, ultimoMovimientoDelSocio, visitaAbiertaDelSocio } from "@/lib/db/visitas";
-import { obtenerMembresiaActual } from "@/lib/db/membresias";
-import { esDuplicado } from "@/lib/db/errores";
-import { estadoMembresiaVista } from "@/lib/membresia";
-import { accionDeEscaneo, duracionDeVisita, puedeEscanear } from "@/lib/visita";
+import { registrarEscaneo } from "@/lib/casos/registrarEscaneo";
+import { respuestaRechazo } from "@/lib/respuestaOperacion";
 import { registrarEscaneoSchema } from "@/lib/schemas/escaneo";
 import { requerirUsuario } from "@/lib/auth";
 import { responderError } from "@/lib/errores";
-import { conflicto, conflictoSimple, datosInvalidos} from "@/lib/http";
+import { datosInvalidos } from "@/lib/http";
 import { leerBody } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
     const socio = await requerirUsuario("SOCIO");
-    // El QR trae solo el token: el socio sale de la sesión, nunca del body.
     const resultado = registrarEscaneoSchema.omit({ socioId: true }).safeParse(await leerBody(request));
     if (!resultado.success) return datosInvalidos(resultado.error.flatten());
-
-    const socioId = socio.id;
-    const ahora = new Date();
-
-    // El mismo QR abre o cierra: lo decide el servidor según el estado del
-    // socio, no el cliente (flujo §5). Hay que saberlo ANTES de evaluar las
-    // reglas, porque la condición de membresía aplica solo al ingreso (H1).
-    const abierta = await visitaAbiertaDelSocio(socioId);
-    const membresia = await obtenerMembresiaActual(socioId);
-    const veredicto = puedeEscanear(
-      {
-        estadoMembresia: membresia ? estadoMembresiaVista(membresia, ahora) : null,
-        token: resultado.data.qrToken,
-        tokenEsperado: process.env.QR_TOKEN ?? "",
-        ultimoMovimientoAt: await ultimoMovimientoDelSocio(socioId),
-        hayVisitaAbierta: abierta !== null,
-      },
-      ahora,
-    );
-    if (!veredicto.ok) return conflicto(veredicto);
-
-    if (accionDeEscaneo(abierta !== null) === "ABRIR") {
-      return NextResponse.json({ ...(await abrirVisita(socioId, ahora)), duracionMin: null }, { status: 201 });
-    }
-
-    const cerrada = await cerrarVisita(abierta!.id, ahora);
-    return NextResponse.json({ ...cerrada, duracionMin: duracionDeVisita(cerrada) });
+    const operacion = await registrarEscaneo(socio.id, resultado.data.qrToken);
+    if (!operacion.ok) return respuestaRechazo(operacion);
+    return NextResponse.json(operacion.dato, { status: operacion.dato.estado === "ABIERTA" ? 201 : 200 });
   } catch (error) {
-    // El índice único parcial sobre (socioId) WHERE estado = 'ABIERTA' corta
-    // dos escaneos simultáneos que hayan pasado el debounce.
-    if (esDuplicado(error)) {
-      return conflictoSimple("Ya tenés una visita abierta.", "VISITA_ABIERTA_DUPLICADA");
-    }
     return responderError("POST /api/visitas/escaneos", error);
   }
 }

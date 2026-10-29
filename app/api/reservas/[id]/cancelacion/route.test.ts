@@ -10,6 +10,14 @@ const { requerirUsuario, obtenerReservaDeSocio, cancelarReserva } = vi.hoisted((
 }));
 vi.mock("@/lib/auth", () => ({ requerirUsuario }));
 vi.mock("@/lib/db/reservas", () => ({ obtenerReservaDeSocio, cancelarReserva }));
+// Ejecutar el caso de uso real con repositorios simulados, sin abrir PostgreSQL.
+vi.mock("@/lib/db/operacionSocio", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/db/operacionSocio")>();
+  return { ...original, operarSocio: (socioId: string, trabajo: (datos: Pick<import("@/lib/db/operacionSocio").DatosSocio, "reserva" | "cancelar">) => Promise<unknown>) => trabajo({
+    reserva: (id: string) => obtenerReservaDeSocio(id, socioId),
+    cancelar: (id: string) => cancelarReserva(id, socioId),
+  }) };
+});
 
 import { POST } from "./route";
 

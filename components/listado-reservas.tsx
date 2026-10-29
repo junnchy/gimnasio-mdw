@@ -1,4 +1,6 @@
 import { FiltroReservas } from "@/components/filtro-reservas";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { SinDatos } from "@/components/sin-datos";
 import { listarReservasDeSocio } from "@/lib/db/reservas";
 import { aFilaReserva } from "@/lib/filaReserva";
@@ -21,6 +23,7 @@ export async function ListadoReservas({ socioId }: { socioId: string }) {
         <SinDatos
           titulo="Todavía no tenés reservas"
           detalle="Cuando reserves una clase, la vas a ver acá con su horario y su estado."
+          accion={<Button render={<Link href="/clases" />} nativeButton={false} className="min-h-12">Reservá una clase</Button>}
         />
       </div>
     );

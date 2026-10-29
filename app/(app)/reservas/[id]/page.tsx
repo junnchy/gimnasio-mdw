@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { CancelarReserva } from "@/components/CancelarReserva";
+import { puedeCancelar } from "@/lib/reserva";
 import { InsigniaReserva } from "@/components/insignia-reserva";
 import { SoloSocios } from "@/components/solo-socios";
 import { VolverAReservas } from "@/components/volver-a-reservas";
@@ -59,6 +61,7 @@ export default async function DetalleReserva({ params }: Props) {
             <dt className="text-muted-foreground">Asistencia</dt>
             <dd>{fila.presente ? "Registrada" : "Sin registrar"}</dd>
           </dl>
+          <CancelarReserva reservaId={reserva.id} habilitada={puedeCancelar({ estado: reserva.estado, claseInicio: reserva.clase.inicio }, new Date()).ok} />
         </CardContent>
       </Card>
     </div>

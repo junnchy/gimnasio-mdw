@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { InsigniaMembresia } from "@/components/insignia-membresia";
 import { ListadoReservas } from "@/components/listado-reservas";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,10 @@ export async function PanelSocio({ socioId }: { socioId: string }) {
 
   return (
     <div className="space-y-10">
+      <nav aria-label="Acciones del socio" className="flex flex-col gap-3 sm:flex-row">
+        <Button render={<Link href="/escanear" />} nativeButton={false} className="min-h-12">Escaneá el QR</Button>
+        <Button render={<Link href="/clases" />} nativeButton={false} variant="outline" className="min-h-12">Reservá una clase</Button>
+      </nav>
       <section aria-labelledby="titulo-membresia">
         <Card>
           <CardHeader>

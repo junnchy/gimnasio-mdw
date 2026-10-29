@@ -118,7 +118,7 @@ que ya se compartieron. Las filas marcadas **falta** son propuestas: se confirma
 |---|---|---|---|
 | — | Ingreso | `/ingresar` | Cualquiera, **sin sesión** |
 | — | Inicio: lo que te corresponde | `/` | Con sesión. El rol cambia el contenido: el socio ve su membresía (H8) y sus reservas; profesor y admin, las clases programadas |
-| 1 | Escanear el QR de la puerta (H1, H2) | `/escanear` | SOCIO · **falta (clase 11)** |
+| 1 | Escanear el QR de la puerta (H1, H2) | `/escanear` | SOCIO · clase 12 |
 | 2–4 | — | — | No es una pantalla: son las reglas de `lib/visita.ts`. El resultado (ingreso, o egreso con la duración) se muestra en `/escanear` |
 | 5 | — | — | Proceso automático (`/api/visitas/cierre-diario`, H3), sin pantalla |
 | 6 | Reportes de ocupación | `/reportes` | ADMIN · **falta** |
@@ -129,15 +129,19 @@ Fuera del flujo principal:
 |---|---|---|
 | Mis reservas (H4, H5) | `/reservas` | SOCIO |
 | Detalle de una reserva | `/reservas/:id` | SOCIO, solo si es suya (si no, 404) |
-| Reservar una clase (H4) | `/clases` | SOCIO · **falta (clase 11)** |
+| Reservar una clase (H4) | `/clases` | SOCIO · clase 12 |
 | Galería de componentes | `/sistema` | Con sesión. Herramienta del equipo: no está enlazada en la interfaz, se abre por la dirección |
 
 Lo que el mapa deja a la vista:
 
 - **Una sola pantalla no pide sesión**, `/ingresar`. Esa fila es la razón de que existan los grupos
   de ruta `(public)` y `(app)`.
-- **Lo que falta son las pantallas que escriben** (escanear, reservar): van con formularios y
-  Server Actions en la clase 11.
+- **Clase 12:** `/escanear` lee con la cámara dentro de Pulso (o desde una imagen local del QR)
+  y registra ingreso/egreso con una Server Action. El QR contiene el token fijo, no una URL.
+  `/clases` permite elegir y reservar una clase futura; `/reservas/:id` permite confirmar
+  la cancelación de una reserva propia. Las tres operaciones verifican sesión y rol SOCIO.
+  Al reservar se abre el detalle nuevo; al cancelar se permanece en el detalle actualizado;
+  el resultado de ingreso/egreso permanece en `/escanear`. Pagos y reportes no son parte de esta entrega.
 
 ## 6. Reglas de negocio
 
