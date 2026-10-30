@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ClasesParaReservar } from "@/components/ClasesParaReservar";
+import { ClasesParaReservar } from "@/components/clases-para-reservar";
 import { EsqueletoReservas } from "@/components/esqueleto-reservas";
 import { SoloSocios } from "@/components/solo-socios";
 import { requerirUsuarioEnPantalla } from "@/lib/auth";

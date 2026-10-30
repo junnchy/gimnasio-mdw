@@ -1,4 +1,4 @@
-import { ReservarClase } from "@/components/ReservarClase";
+import { ReservarClase } from "@/components/reservar-clase";
 import { SinDatos } from "@/components/sin-datos";
 import { listarProximasClases } from "@/lib/db/clases";
 import { aFilaClase } from "@/lib/filaClase";

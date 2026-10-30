@@ -14,7 +14,7 @@ export async function reservarClase(socioId: string, claseId: string): Promise<R
       const membresia = await datos.membresia();
       const veredicto = puedeReservar({
         estadoMembresia: membresia ? estadoMembresiaVista(membresia, ahora) : null,
-        clase, reservasVigentes: await datos.reservas(),
+        clase, reservasVigentes: await datos.reservas(clase),
       }, ahora);
       if (!veredicto.ok) return rechazo(veredicto.motivos);
       return { ok: true, dato: await datos.reservar(claseId) };

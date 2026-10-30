@@ -1,3 +1,4 @@
+import { EstadoFormulario } from "@/components/estado-formulario";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EsqueletoReservas } from "@/components/esqueleto-reservas";
@@ -170,6 +171,14 @@ export default async function Sistema() {
             <p className="text-xs">Así se ve el estado de error (app/(app)/error.tsx), que además ofrece «Reintentar».</p>
           </AlertDescription>
         </Alert>
+      </section>
+
+      <section aria-labelledby="s-formularios" className="space-y-4">
+        <h2 id="s-formularios" className="text-lg font-bold">Formularios</h2>
+        <EstadoFormulario estado={{ estado: "ERROR", mensaje: "Sin cupo disponible. Elegí otra clase." }} />
+        <EstadoFormulario estado={{ estado: "EXITO", mensaje: "Salida registrada", resultado: { hora: "18:30", duracionMin: 60 } }} />
+        <div className="space-y-2"><label htmlFor="form-ejemplo">Elegí una clase</label><select id="form-ejemplo" aria-invalid="true" aria-describedby="form-ejemplo-error" className="block min-h-12 w-full rounded-lg border border-input bg-background px-3"><option>Seleccioná una clase</option></select><p id="form-ejemplo-error" className="text-destructive">Elegí una clase para continuar.</p></div>
+        <Button disabled className="min-h-12">Reservando…</Button>
       </section>
 
       <section aria-labelledby="s-estados" className="space-y-8">

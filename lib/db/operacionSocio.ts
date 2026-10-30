@@ -10,7 +10,7 @@ function repositorios(tx: Prisma.TransactionClient, socioId: string) {
   return {
     clase: (id: string) => claseParaReservar(id, tx),
     membresia: () => obtenerMembresiaActual(socioId, tx),
-    reservas: () => reservasVigentesDelSocio(socioId, tx),
+    reservas: (clase: { inicio: Date; duracionMin: number }) => reservasVigentesDelSocio(socioId, clase, tx),
     reservar: (claseId: string) => crearReserva(claseId, socioId, tx),
     reserva: (id: string) => obtenerReservaDeSocio(id, socioId, tx),
     cancelar: (id: string) => cancelarReserva(id, socioId, tx),
@@ -32,9 +32,14 @@ export async function operarSocio<T>(socioId: string, trabajo: (datos: DatosSoci
     try {
       return await prisma.$transaction((tx) => trabajo(repositorios(tx, socioId)), {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: 10000,
+        timeout: 15000,
       });
     } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2034") throw error;
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError)) throw error;
+      // P2028 es amplio: solo se reintenta si Prisma no llegó a iniciar la transacción.
+      const noInicio = error.code === "P2028" && error.message.includes("Unable to start a transaction in the given time");
+      if (error.code !== "P2034" && !noInicio) throw error;
     }
   }
   throw new OperacionConcurrente();

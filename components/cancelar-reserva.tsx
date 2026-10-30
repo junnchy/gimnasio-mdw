@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { cancelarReservaAction } from "@/app/(app)/reservas/[id]/acciones";
-import { EstadoFormulario } from "@/components/EstadoFormulario";
+import { EstadoFormulario } from "@/components/estado-formulario";
 import { Button } from "@/components/ui/button";
 import { SIN_ENVIAR } from "@/lib/schemas/formulario";
 

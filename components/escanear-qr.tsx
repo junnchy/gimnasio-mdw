@@ -3,7 +3,7 @@
 import { startTransition, useActionState, useCallback, useEffect, useId, useRef, useState } from "react";
 import type { IScannerControls } from "@zxing/browser";
 import { registrarEscaneoAction } from "@/app/(app)/escanear/acciones";
-import { EstadoFormulario } from "@/components/EstadoFormulario";
+import { EstadoFormulario } from "@/components/estado-formulario";
 import { Button } from "@/components/ui/button";
 import { SIN_ENVIAR } from "@/lib/schemas/formulario";
 

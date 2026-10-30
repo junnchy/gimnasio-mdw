@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { EscanearQr } from "@/components/EscanearQr";
+import { EscanearQr } from "@/components/escanear-qr";
 import { SoloSocios } from "@/components/solo-socios";
 import { requerirUsuarioEnPantalla } from "@/lib/auth";
 

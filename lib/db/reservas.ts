@@ -2,7 +2,6 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
 
 const LIMITE_POR_DEFECTO = 50;
-const LIMITE_RESERVAS_VIGENTES = 100;
 
 export async function listarReservasDeSocio(socioId: string, limite: number = LIMITE_POR_DEFECTO) {
   return prisma.reserva.findMany({
@@ -34,25 +33,19 @@ export async function claseParaReservar(claseId: string, db: Prisma.TransactionC
   };
 }
 
-/** Las reservas CONFIRMADAS del socio, para detectar solapamiento de horario (H4). */
-export async function reservasVigentesDelSocio(socioId: string, db: Prisma.TransactionClient = prisma) {
-  // Páginas acotadas: no truncar las reglas al llegar a la reserva 100.
-  const reservas = [];
-  let cursor: string | undefined;
-  do {
-    const pagina = await db.reserva.findMany({
-      where: { socioId, estado: "CONFIRMADA" },
-      take: LIMITE_RESERVAS_VIGENTES,
-      orderBy: { id: "asc" },
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      select: { id: true, clase: { select: { nombre: true, inicio: true, duracionMin: true } } },
-    });
-    reservas.push(...pagina.map(({ clase }) => ({
-      claseNombre: clase.nombre, inicio: clase.inicio, duracionMin: clase.duracionMin,
-    })));
-    cursor = pagina.length === LIMITE_RESERVAS_VIGENTES ? pagina.at(-1)?.id : undefined;
-  } while (cursor);
-  return reservas;
+/** Una sola coincidencia alcanza para rechazar el solapamiento (H4).
+ * La comparación se hace en PostgreSQL para no truncar resultados por paginación.
+ */
+export async function reservasVigentesDelSocio(socioId: string, clase: { inicio: Date; duracionMin: number }, db: Prisma.TransactionClient = prisma) {
+  const fin = new Date(clase.inicio.getTime() + clase.duracionMin * 60_000);
+  return db.$queryRaw<{ claseNombre: string; inicio: Date; duracionMin: number }[]>`
+    SELECT c.nombre AS "claseNombre", c.inicio, c."duracionMin"
+    FROM "Reserva" r JOIN "Clase" c ON c.id = r."claseId"
+    WHERE r."socioId" = ${socioId} AND r.estado = 'CONFIRMADA'
+      AND c.inicio < ${fin}
+      AND c.inicio + c."duracionMin" * interval '1 minute' > ${clase.inicio}
+    LIMIT 1
+  `;
 }
 
 export async function crearReserva(claseId: string, socioId: string, db: Prisma.TransactionClient = prisma) {

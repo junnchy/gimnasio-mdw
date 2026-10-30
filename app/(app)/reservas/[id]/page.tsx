@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CancelarReserva } from "@/components/CancelarReserva";
+import { CancelarReserva } from "@/components/cancelar-reserva";
 import { puedeCancelar } from "@/lib/reserva";
 import { InsigniaReserva } from "@/components/insignia-reserva";
 import { SoloSocios } from "@/components/solo-socios";

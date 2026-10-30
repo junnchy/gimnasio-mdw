@@ -100,7 +100,6 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - Los **contratos de datos** viven en `lib/schemas/` (Zod). Los tipos se derivan con `z.infer`, nunca se escriben a mano en paralelo.
 
 ## Formularios (Clase 12)
-- Los nuevos archivos de componentes de esta entrega usan PascalCase, según la convención solicitada para la clase 12; no se renombran los componentes anteriores.
 - Cada Server Action verifica `requerirUsuario("SOCIO")` antes de procesar datos; los ids ligados con `bind` también se validan y autorizan.
 - Los formularios usan `useActionState`, sin `fetch` a la API propia. Validaciones debajo del campo; rechazos de negocio arriba. No se pierden los valores al fallar.
 - Mientras se guarda, el envío está deshabilitado y anuncia la operación. El lector QR se detiene al detectar y al desmontarse.

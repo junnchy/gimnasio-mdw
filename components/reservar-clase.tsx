@@ -2,7 +2,7 @@
 
 import { useActionState, useId, useState } from "react";
 import { reservarClaseAction } from "@/app/(app)/clases/acciones";
-import { EstadoFormulario } from "@/components/EstadoFormulario";
+import { EstadoFormulario } from "@/components/estado-formulario";
 import { Button } from "@/components/ui/button";
 import { SIN_ENVIAR } from "@/lib/schemas/formulario";
 import type { FilaClase } from "@/lib/filaClase";
@@ -23,7 +23,7 @@ export function ReservarClase({ clases }: { clases: FilaClase[] }) {
       <div className="space-y-2">
         <label htmlFor={campoId} className="block font-medium">Elegí una clase</label>
         <select id={campoId} name="claseId" defaultValue={estado.valores?.claseId ?? ""}
-          key={`${estado.estado}-${estado.valores?.claseId ?? ""}-${soloConLugar}`}
+          key={`${estado.estado}-${estado.valores?.claseId ?? ""}`}
           aria-invalid={Boolean(error)} aria-describedby={error ? `${campoId}-error` : `${campoId}-ayuda`}
           disabled={pendiente}
           className="min-h-12 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring">
