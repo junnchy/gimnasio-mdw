@@ -75,4 +75,14 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: Tests de integración (concurrencia incluida)
-        run: npx vitest run lib/db/operaciones.integration.test.ts
+        run: npx vitest run lib/db/operaciones.integration.test.ts --reporter=default --reporter=json --outputFile=integracion.json
+
+      # Si TEST_DATABASE_URL no llegara, el archivo se saltea entero y vitest
+      # igual termina en verde. Este paso hace fallar el job en ese caso.
+      - name: Confirmar que los tests corrieron y ninguno se salteó
+        run: |
+          node -e '
+            const r = require("./integracion.json");
+            console.log(`pasaron ${r.numPassedTests}, fallaron ${r.numFailedTests}, salteados ${r.numPendingTests + r.numTodoTests}`);
+            if (r.numPassedTests === 0 || r.numFailedTests > 0 || r.numPendingTests + r.numTodoTests > 0) process.exit(1);
+          '
