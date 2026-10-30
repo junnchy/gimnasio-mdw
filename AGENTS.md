@@ -99,6 +99,14 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - El **qué** del sistema vive en `docs/spec.md`. Regla: **si no está en la spec, no se implementa.**
 - Los **contratos de datos** viven en `lib/schemas/` (Zod). Los tipos se derivan con `z.infer`, nunca se escriben a mano en paralelo.
 
+## Formularios (Clase 12)
+- Cada Server Action verifica `requerirUsuario("SOCIO")` antes de procesar datos; los ids ligados con `bind` también se validan y autorizan.
+- Los formularios usan `useActionState`, sin `fetch` a la API propia. Validaciones debajo del campo; rechazos de negocio arriba. No se pierden los valores al fallar.
+- Mientras se guarda, el envío está deshabilitado y anuncia la operación. El lector QR se detiene al detectar y al desmontarse.
+- API y acciones comparten los casos de uso de `lib/casos/`. Las comprobaciones y escrituras de socio corren juntas mediante `operarSocio` (`SERIALIZABLE`, hasta tres intentos).
+- Después de escribir se revalidan las pantallas afectadas. `redirect` queda fuera del bloque que captura errores.
+- Cada campo tiene etiqueta asociada y errores conectados con `aria-describedby`/`aria-invalid`. Ningún token QR vuelve en el estado del formulario.
+
 ## Reglas verificables (Clase 2)
 - **Prohibido `any`** (lo verifica el linter). Ante datos desconocidos usar `unknown` y validar antes de usar.
 - **Todo input externo** (formularios, body de HTTP, params, respuestas de API) se valida con un schema de **Zod** en el borde del sistema, antes de tocar la base.

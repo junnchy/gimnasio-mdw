@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
 import type { Membresia } from "@/lib/schemas/membresia";
 
@@ -6,8 +7,8 @@ import type { Membresia } from "@/lib/schemas/membresia";
  * lejana: es la regla de la H8 que la base no puede expresar, y vive acá para
  * que todas las pantallas elijan igual.
  */
-export async function obtenerMembresiaActual(socioId: string) {
-  return prisma.membresia.findFirst({ where: { socioId }, orderBy: { fechaFin: "desc" }, include: { plan: true } });
+export async function obtenerMembresiaActual(socioId: string, db: Prisma.TransactionClient = prisma) {
+  return db.membresia.findFirst({ where: { socioId }, orderBy: { fechaFin: "desc" }, include: { plan: true } });
 }
 
 /** La membresía con la duración de su plan, que es lo que la H7 necesita para renovar. */
