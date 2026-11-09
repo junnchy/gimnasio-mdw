@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
+import { exigirAdmin } from "@/lib/db/permisos";
+import type { RolUsuario } from "@/lib/schemas/_common";
 import { inicioDelDiaArgentina } from "@/lib/visita";
 
 const LIMITE_POR_DEFECTO = 50;
@@ -44,4 +46,40 @@ export async function cerrarVisitasDelDia(ahora: Date) {
     where: { estado: "ABIERTA", ingresoAt: { lt: inicioDelDiaArgentina(ahora) } },
     data: { estado: "INCOMPLETA" },
   });
+}
+
+/**
+ * Para recepción (pantalla /visitas). Devuelven visitas de TODOS los socios,
+ * así que reciben a quien pregunta y exigen ADMIN (`exigirAdmin`), además del
+ * chequeo de la página. Solo se lee el nombre y el mail del socio.
+ */
+type Quien = { rol: RolUsuario };
+const socioDeLaVisita = { socio: { select: { nombre: true, email: true } } } as const;
+const LIMITE_ADENTRO = 100;
+
+/**
+ * Quién está adentro ahora: las visitas ABIERTAS, la más antigua primero.
+ * Con tope: si el cierre diario (H3) fallara unos días, se acumularían.
+ * El total real sale de `contarVisitasAbiertas`.
+ */
+export async function listarVisitasAbiertas(quien: Quien, limite: number = LIMITE_ADENTRO) {
+  exigirAdmin(quien);
+  return prisma.visita.findMany({ where: { estado: "ABIERTA" }, take: limite, orderBy: { ingresoAt: "asc" }, include: socioDeLaVisita });
+}
+
+export async function contarVisitasAbiertas(quien: Quien) {
+  exigirAdmin(quien);
+  return prisma.visita.count({ where: { estado: "ABIERTA" } });
+}
+
+/** Los últimos movimientos del gimnasio, el más reciente primero. */
+export async function listarVisitasRecientes(quien: Quien, limite: number = LIMITE_POR_DEFECTO) {
+  exigirAdmin(quien);
+  return prisma.visita.findMany({ take: limite, orderBy: { ingresoAt: "desc" }, include: socioDeLaVisita });
+}
+
+/** Ingresos desde un momento (el inicio del día de Argentina, en la pantalla). */
+export async function contarIngresosDesde(quien: Quien, desde: Date) {
+  exigirAdmin(quien);
+  return prisma.visita.count({ where: { ingresoAt: { gte: desde } } });
 }

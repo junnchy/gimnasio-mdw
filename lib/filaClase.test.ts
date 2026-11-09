@@ -32,8 +32,16 @@ describe("aFilaClase", () => {
   });
 });
 
+describe("verInscriptos", () => {
+  it("el admin puede abrir todas; el profesor, solo las que dicta", () => {
+    expect(aFilaClase(clase(0, 10, "p1"), "admin", true).verInscriptos).toBe(true);
+    expect(aFilaClase(clase(0, 10, "p1"), "p1").verInscriptos).toBe(true);
+    expect(aFilaClase(clase(0, 10, "p1"), "p2").verInscriptos).toBe(false);
+  });
+});
+
 describe("filtrarClases", () => {
-  const base = { fecha: "", horario: "", sala: null, profesor: "", ocupados: 0, cupo: 1 };
+  const base = { fecha: "", horario: "", sala: null, profesor: "", ocupados: 0, cupo: 1, verInscriptos: false };
   const filas: FilaClase[] = [
     { ...base, id: "a", nombre: "A", sinCupo: false, esMia: true },
     { ...base, id: "b", nombre: "B", sinCupo: true, esMia: false },

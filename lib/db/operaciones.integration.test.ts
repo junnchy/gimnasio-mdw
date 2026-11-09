@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db/client";
 import { reservarClase } from "@/lib/casos/reservarClase";
 import { cancelarReservaPropia } from "@/lib/casos/cancelarReserva";
 import { registrarEscaneo } from "@/lib/casos/registrarEscaneo";
+import { obtenerClaseConInscriptos } from "@/lib/db/clases";
+import { listarSociosConMembresia } from "@/lib/db/socios";
+import { listarVisitasAbiertas } from "@/lib/db/visitas";
+import { NoAutorizado } from "@/lib/errores";
 
 const conexion = vi.hoisted(() => {
   const conexion = process.env.TEST_DATABASE_URL;
@@ -119,5 +123,31 @@ describe.skipIf(!conexion)("operaciones de socio contra PostgreSQL", () => {
     expect(await prisma.visita.count({ where: { socioId } })).toBe(0);
     await prisma.visita.create({ data: { socioId, ingresoAt: new Date(Date.now() - 120000), estado: "ABIERTA" } });
     expect(await registrarEscaneo(socioId, token)).toMatchObject({ ok: true, dato: { estado: "CERRADA", duracionMin: 2 } });
+  });
+
+  it("inscriptos: el admin ve cualquier clase, el profesor solo la suya y el socio ninguna", async () => {
+    expect((await reservarClase(socioId, claseId)).ok).toBe(true);
+    const comoAdmin = await obtenerClaseConInscriptos(claseId, { id: "cualquiera", rol: "ADMIN" });
+    expect(comoAdmin?.reservas.map((r) => r.socio.nombre)).toEqual(["Socio"]);
+    expect(await obtenerClaseConInscriptos(claseId, { id: profesorId, rol: "PROFESOR" })).not.toBeNull();
+    // Ajena e inexistente vuelven igual: null (la pantalla responde 404 en los dos casos).
+    expect(await obtenerClaseConInscriptos(claseId, { id: `${prefijo}-otro-profe`, rol: "PROFESOR" })).toBeNull();
+    expect(await obtenerClaseConInscriptos(`${prefijo}-no-existe`, { id: profesorId, rol: "PROFESOR" })).toBeNull();
+    expect(await obtenerClaseConInscriptos(claseId, { id: socioId, rol: "SOCIO" })).toBeNull();
+  });
+
+  it("listados de staff: exigen ADMIN, buscan sin distinguir mayúsculas y devuelven el total real", async () => {
+    await expect(listarVisitasAbiertas({ rol: "SOCIO" })).rejects.toBeInstanceOf(NoAutorizado);
+    await expect(listarSociosConMembresia({ rol: "PROFESOR" })).rejects.toBeInstanceOf(NoAutorizado);
+
+    const buscado = await listarSociosConMembresia({ rol: "ADMIN" }, { busqueda: socioId.toUpperCase() });
+    expect(buscado.total).toBe(1);
+    expect(buscado.socios.map((s) => s.id)).toEqual([socioId]);
+    expect(buscado.socios[0]?.membresias).toHaveLength(1);
+
+    // Con límite 1 vuelve un socio, pero el total dice que hay dos (el profesor no cuenta).
+    const recortado = await listarSociosConMembresia({ rol: "ADMIN" }, { busqueda: prefijo, limite: 1 });
+    expect(recortado.socios).toHaveLength(1);
+    expect(recortado.total).toBe(2);
   });
 });

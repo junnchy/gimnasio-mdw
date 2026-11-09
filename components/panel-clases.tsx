@@ -14,8 +14,9 @@ import { aFilaClase } from "@/lib/filaClase";
  * del gimnasio y sin los ids de los profesores, que no tienen por qué viajar
  * al navegador.
  */
-export async function PanelClases({ usuarioId, esProfesor }: { usuarioId: string; esProfesor: boolean }) {
-  const clases = (await listarProximasClases(new Date())).map((clase) => aFilaClase(clase, usuarioId));
+export async function PanelClases({ usuarioId, rol }: { usuarioId: string; rol: "PROFESOR" | "ADMIN" }) {
+  const esProfesor = rol === "PROFESOR";
+  const clases = (await listarProximasClases(new Date())).map((clase) => aFilaClase(clase, usuarioId, rol === "ADMIN"));
 
   return (
     <section aria-labelledby="titulo-clases">

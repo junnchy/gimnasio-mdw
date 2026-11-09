@@ -37,7 +37,7 @@ export default async function Inicio() {
         {usuario.rol === "SOCIO" ? (
           <PanelSocio socioId={usuario.id} />
         ) : (
-          <PanelClases usuarioId={usuario.id} esProfesor={usuario.rol === "PROFESOR"} />
+          <PanelClases usuarioId={usuario.id} rol={usuario.rol} />
         )}
       </Suspense>
     </div>

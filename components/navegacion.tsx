@@ -47,6 +47,16 @@ export function Navegacion({ usuario }: { usuario: UsuarioSesion }) {
                 <EnlaceNavegacion href="/reservas">Mis reservas</EnlaceNavegacion>
               </li>
             ) : null}
+            {usuario.rol === "ADMIN" ? (
+              <>
+                <li>
+                  <EnlaceNavegacion href="/visitas">Ingresos</EnlaceNavegacion>
+                </li>
+                <li>
+                  <EnlaceNavegacion href="/socios">Socios</EnlaceNavegacion>
+                </li>
+              </>
+            ) : null}
           </ul>
         </nav>
       </div>
