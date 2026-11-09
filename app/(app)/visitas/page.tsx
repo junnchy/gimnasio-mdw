@@ -22,7 +22,7 @@ export default async function Ingresos() {
       <h1 className="text-2xl font-bold">Ingresos</h1>
       <p className="mt-1 text-muted-foreground">Quién está entrenando y los últimos ingresos y salidas por QR.</p>
       <Suspense fallback={<EsqueletoListado que="los ingresos" />}>
-        <ListadoVisitas />
+        <ListadoVisitas quien={usuario} />
       </Suspense>
     </div>
   );

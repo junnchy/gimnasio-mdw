@@ -1,23 +1,25 @@
 import { InsigniaVisita } from "@/components/insignia-visita";
 import { SinDatos } from "@/components/sin-datos";
-import { contarIngresosDesde, listarVisitasAbiertas, listarVisitasRecientes } from "@/lib/db/visitas";
+import { contarIngresosDesde, contarVisitasAbiertas, listarVisitasAbiertas, listarVisitasRecientes } from "@/lib/db/visitas";
 import { aFilaVisita, type FilaVisita } from "@/lib/filaVisita";
+import type { RolUsuario } from "@/lib/schemas/_common";
 import { inicioDelDiaArgentina } from "@/lib/visita";
 
 /**
  * Los ingresos al gimnasio para recepción (ADMIN). Server Component async,
- * dentro del <Suspense> de /visitas. La página ya verificó el rol: estas
- * consultas devuelven visitas de todos los socios.
+ * dentro del <Suspense> de /visitas. Recibe a quien mira: las consultas
+ * vuelven a exigir ADMIN, aunque la página ya lo verificó.
  *
  * "Sin salida" son las visitas que el cierre diario (H3) marcó INCOMPLETA:
  * no tienen duración, porque inventarla ensuciaría las métricas.
  */
-export async function ListadoVisitas() {
+export async function ListadoVisitas({ quien }: { quien: { rol: RolUsuario } }) {
   const ahora = new Date();
-  const [abiertas, recientes, ingresosHoy] = await Promise.all([
-    listarVisitasAbiertas(),
-    listarVisitasRecientes(),
-    contarIngresosDesde(inicioDelDiaArgentina(ahora)),
+  const [abiertas, totalAdentro, recientes, ingresosHoy] = await Promise.all([
+    listarVisitasAbiertas(quien),
+    contarVisitasAbiertas(quien),
+    listarVisitasRecientes(quien),
+    contarIngresosDesde(quien, inicioDelDiaArgentina(ahora)),
   ]);
 
   if (recientes.length === 0) {
@@ -39,7 +41,7 @@ export async function ListadoVisitas() {
       <dl className="grid grid-cols-2 gap-3">
         <div className="rounded-xl p-4 ring-1 ring-foreground/10">
           <dt className="text-sm text-muted-foreground">Adentro ahora</dt>
-          <dd className="mt-1 font-heading text-3xl font-bold tabular-nums">{adentro.length}</dd>
+          <dd className="mt-1 font-heading text-3xl font-bold tabular-nums">{totalAdentro}</dd>
         </div>
         <div className="rounded-xl p-4 ring-1 ring-foreground/10">
           <dt className="text-sm text-muted-foreground">Ingresos de hoy</dt>
@@ -54,7 +56,14 @@ export async function ListadoVisitas() {
         {adentro.length === 0 ? (
           <p className="mt-2 text-muted-foreground">No hay nadie entrenando en este momento.</p>
         ) : (
-          <ListaVisitas filas={adentro} />
+          <>
+            {totalAdentro > adentro.length ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Se muestran los {adentro.length} que entraron primero, de {totalAdentro}.
+              </p>
+            ) : null}
+            <ListaVisitas filas={adentro} />
+          </>
         )}
       </section>
 

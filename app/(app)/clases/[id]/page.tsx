@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCheck, Clock } from "lucide-react";
+import { CheckCheck, Clock, Users } from "lucide-react";
 import { SeccionRestringida } from "@/components/seccion-restringida";
 import { SinDatos } from "@/components/sin-datos";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,7 @@ export default async function InscriptosDeClase({ params }: Props) {
           </CardDescription>
           <CardAction>
             <Badge variant={fila.sinCupo ? "destructive" : "secondary"}>
+              <Users aria-hidden="true" />
               {fila.sinCupo ? "Sin cupo" : `${fila.ocupados} de ${fila.cupo} lugares`}
             </Badge>
           </CardAction>
@@ -82,7 +83,8 @@ export default async function InscriptosDeClase({ params }: Props) {
               <li key={reserva.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
                   <p className="font-medium break-words">{reserva.socio.nombre}</p>
-                  <p className="text-sm break-all text-muted-foreground">{reserva.socio.email}</p>
+                  {/* El mail es dato de contacto: lo ve recepción, no el profesor (spec §2). */}
+                  {usuario.rol === "ADMIN" ? <p className="text-sm break-all text-muted-foreground">{reserva.socio.email}</p> : null}
                   <p className="text-sm text-muted-foreground">Reservó el {formatearFecha(reserva.createdAt)}</p>
                 </div>
                 {reserva.presente ? (

@@ -3,7 +3,9 @@
 /**
  * Los socios con un filtro por estado de membresía (ADMIN, /socios). Es el
  * estado "sin resultados" de esa pantalla: el único que sabe qué filtro se
- * eligió es este componente. Filtra en memoria las filas que ya llegaron con
+ * eligió es este componente. La búsqueda por nombre o mail, en cambio, va al
+ * servidor (`?q=`): con más socios que el límite, filtrar en memoria no
+ * encontraría a los que quedaron afuera. Filtra en memoria las filas que ya llegaron con
  * el HTML (como `FiltroClases`).
  */
 import { useState } from "react";
@@ -18,7 +20,8 @@ const ETIQUETAS: Record<FiltroSocio, string> = {
   SIN_MEMBRESIA: "Sin membresía",
 };
 
-export function FiltroSocios({ socios }: { socios: FilaSocio[] }) {
+export function FiltroSocios({ socios, total }: { socios: FilaSocio[]; total: number }) {
+  const recortado = total > socios.length;
   const [filtro, setFiltro] = useState<FiltroSocio>("TODOS");
   const visibles = filtrarSocios(socios, filtro);
 
@@ -36,6 +39,14 @@ export function FiltroSocios({ socios }: { socios: FilaSocio[] }) {
           </Button>
         ))}
       </div>
+
+      {/* Con más socios que el límite, el recorte se dice: los contadores no son el total del gimnasio. */}
+      {recortado ? (
+        <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm">
+          Se muestran los primeros {socios.length} de {total} socios, por orden alfabético, y los contadores cuentan solo esos.
+          Buscá por nombre o mail para encontrar al resto.
+        </p>
+      ) : null}
 
       <p className="mt-4 text-sm text-muted-foreground" aria-live="polite">
         {visibles.length === 1 ? "1 socio" : `${visibles.length} socios`}
