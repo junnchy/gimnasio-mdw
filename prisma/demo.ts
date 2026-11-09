@@ -11,6 +11,9 @@
  *   SEED_PROFESOR_EMAIL="otra@gmail.com"   (opcional) profesor de varias clases
  *   SEED_ADMIN_EMAIL="otra-mas@gmail.com"  (opcional) admin
  *
+ * Tarda uno o dos minutos: son unas 200 consultas, una tras otra, contra la
+ * base de Supabase (Canadá). Va mostrando el avance.
+ *
  * Se puede correr varias veces: busca antes de crear, igual que el seed. Las
  * fechas son relativas al momento en que se corre (hora de Argentina), así
  * que conviene correrlo la noche anterior o el mismo día de la demo.
@@ -85,6 +88,7 @@ async function reservar(socioId: string, claseId: string) {
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error("Falta DATABASE_URL: completá .env.local antes de correr la demo.");
 
+  console.log("Conectando a la base y cargando planes…");
   const { mensual, trimestral, anual } = await planes();
 
   // Profesores: los ficticios y, si se pasó, la cuenta real de la demo.
@@ -100,6 +104,7 @@ async function main() {
     await prisma.user.upsert({ where: { email }, update: { rol: Rol.ADMIN }, create: { email, nombre: email, rol: Rol.ADMIN } });
   }
 
+  console.log("Socios de ejemplo…");
   // Socios ficticios con membresía al día: llenan los cupos de las clases.
   const nombres = ["Valentina Pérez", "Tomás Fernández", "Camila López", "Joaquín Martínez", "Sofía Romero", "Mateo Díaz", "Martina Álvarez", "Benjamín Torres"];
   const socios: User[] = [];
@@ -134,6 +139,7 @@ async function main() {
       const cuantas = ultimoCupo ? 5 : (dia * 3 + j * 2) % 7;
       for (const socio of socios.slice(0, cuantas)) await reservar(socio.id, c.id);
       creadas.push({ c, dia, item });
+      console.log(`Clase ${creadas.length}: ${item.nombre} ${c.inicio.toISOString().slice(0, 16)} UTC`);
     }
   }
 
