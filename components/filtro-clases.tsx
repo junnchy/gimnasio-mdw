@@ -9,9 +9,13 @@
  * clic (evento). Filtra en memoria las filas que ya llegaron con el HTML, sin
  * requests: alcanza porque `listarProximasClases` trae como mucho 50.
  *
+ * El nombre es un enlace a los inscriptos (/clases/:id) cuando quien mira
+ * puede verlos: el admin, todas; el profesor, las suyas.
+ *
  * "Mis clases" se ofrece solo al profesor; que la opción no esté no protege
  * nada, solo evita un filtro que para el admin siempre daría vacío.
  */
+import Link from "next/link";
 import { useState } from "react";
 import { CircleUser, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +59,15 @@ export function FiltroClases({ clases, mostrarMias }: { clases: FilaClase[]; mos
           {visibles.map((clase) => (
             <li key={clase.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div className="min-w-0">
-                <p className="font-medium break-words">{clase.nombre}</p>
+                <p className="font-medium break-words">
+                  {clase.verInscriptos ? (
+                    <Link href={`/clases/${clase.id}`} className="underline underline-offset-4 hover:text-muted-foreground">
+                      {clase.nombre}
+                    </Link>
+                  ) : (
+                    clase.nombre
+                  )}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {clase.fecha} · {clase.horario}
                   {clase.sala ? ` · ${clase.sala}` : ""}

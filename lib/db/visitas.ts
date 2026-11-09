@@ -45,3 +45,25 @@ export async function cerrarVisitasDelDia(ahora: Date) {
     data: { estado: "INCOMPLETA" },
   });
 }
+
+/**
+ * Para recepción (ADMIN, pantalla /visitas). Quien llama verifica el rol: estas
+ * consultas devuelven visitas de TODOS los socios. Solo se lee el nombre y el
+ * mail del socio, no el resto del usuario.
+ */
+const socioDeLaVisita = { socio: { select: { nombre: true, email: true } } } as const;
+
+/** Quién está adentro ahora: las visitas ABIERTAS, la más antigua primero. */
+export async function listarVisitasAbiertas() {
+  return prisma.visita.findMany({ where: { estado: "ABIERTA" }, orderBy: { ingresoAt: "asc" }, include: socioDeLaVisita });
+}
+
+/** Los últimos movimientos del gimnasio, el más reciente primero. */
+export async function listarVisitasRecientes(limite: number = LIMITE_POR_DEFECTO) {
+  return prisma.visita.findMany({ take: limite, orderBy: { ingresoAt: "desc" }, include: socioDeLaVisita });
+}
+
+/** Ingresos desde un momento (el inicio del día de Argentina, en la pantalla). */
+export async function contarIngresosDesde(desde: Date) {
+  return prisma.visita.count({ where: { ingresoAt: { gte: desde } } });
+}

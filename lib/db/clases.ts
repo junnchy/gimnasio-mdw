@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/client";
+import type { RolUsuario } from "@/lib/schemas/_common";
 import type { Clase } from "@/lib/schemas/clase";
 
 const LIMITE_POR_DEFECTO = 50;
@@ -37,4 +38,32 @@ export async function obtenerClase(id: string) {
 export async function actualizarClase(id: string, datos: Partial<Omit<Clase, "profesorId">>, profesorId: string) {
   const { count } = await prisma.clase.updateMany({ where: { id, profesorId }, data: datos });
   return count === 0 ? null : obtenerClase(id);
+}
+
+/**
+ * Una clase con sus inscriptos (pantalla /clases/:id).
+ *
+ * El permiso vive en el WHERE, como desde la clase 6:
+ *   ADMIN     cualquier clase
+ *   PROFESOR  solo las que dicta; la de otro vuelve null, igual que una que
+ *             no existe (la pantalla responde 404 en los dos casos)
+ *   SOCIO     nunca: los datos de otros socios no son suyos
+ *
+ * Los inscriptos son las reservas CONFIRMADAS; de las canceladas solo se
+ * cuenta cuántas hay.
+ */
+export async function obtenerClaseConInscriptos(id: string, usuario: { id: string; rol: RolUsuario }) {
+  if (usuario.rol === "SOCIO") return null;
+  return prisma.clase.findFirst({
+    where: { id, ...(usuario.rol === "PROFESOR" ? { profesorId: usuario.id } : {}) },
+    include: {
+      profesor: { select: { id: true, nombre: true } },
+      reservas: {
+        where: { estado: "CONFIRMADA" },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, presente: true, createdAt: true, socio: { select: { nombre: true, email: true } } },
+      },
+      _count: { select: { reservas: { where: { estado: "CANCELADA" } } } },
+    },
+  });
 }

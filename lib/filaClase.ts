@@ -23,6 +23,8 @@ export type FilaClase = {
   cupo: number;
   sinCupo: boolean;
   esMia: boolean;
+  /** Si quien mira puede abrir los inscriptos (/clases/:id): el admin, todas; el profesor, las suyas. */
+  verInscriptos: boolean;
 };
 
 /** La forma mínima que devuelve `listarProximasClases`. */
@@ -37,7 +39,7 @@ type ClaseConCupo = {
   _count: { reservas: number };
 };
 
-export function aFilaClase(clase: ClaseConCupo, usuarioId: string): FilaClase {
+export function aFilaClase(clase: ClaseConCupo, usuarioId: string, esAdmin = false): FilaClase {
   const fin = new Date(clase.inicio.getTime() + clase.duracionMin * 60_000);
   const ocupados = clase._count.reservas;
   return {
@@ -51,6 +53,8 @@ export function aFilaClase(clase: ClaseConCupo, usuarioId: string): FilaClase {
     cupo: clase.cupoMaximo,
     sinCupo: ocupados >= clase.cupoMaximo,
     esMia: clase.profesor.id === usuarioId,
+    // Es solo el enlace: /clases/:id vuelve a decidir con la sesión (lib/db/clases.ts).
+    verInscriptos: esAdmin || clase.profesor.id === usuarioId,
   };
 }
 

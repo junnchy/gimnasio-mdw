@@ -15,7 +15,7 @@ import { aFilaClase } from "@/lib/filaClase";
  * al navegador.
  */
 export async function PanelClases({ usuarioId, esProfesor }: { usuarioId: string; esProfesor: boolean }) {
-  const clases = (await listarProximasClases(new Date())).map((clase) => aFilaClase(clase, usuarioId));
+  const clases = (await listarProximasClases(new Date())).map((clase) => aFilaClase(clase, usuarioId, !esProfesor));
 
   return (
     <section aria-labelledby="titulo-clases">

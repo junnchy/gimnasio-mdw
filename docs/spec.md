@@ -121,7 +121,8 @@ que ya se compartieron. Las filas marcadas **falta** son propuestas: se confirma
 | 1 | Escanear el QR de la puerta (H1, H2) | `/escanear` | SOCIO · clase 12 |
 | 2–4 | — | — | No es una pantalla: son las reglas de `lib/visita.ts`. El resultado (ingreso, o egreso con la duración) se muestra en `/escanear` |
 | 5 | — | — | Proceso automático (`/api/visitas/cierre-diario`, H3), sin pantalla |
-| 6 | Reportes de ocupación | `/reportes` | ADMIN · **falta** |
+| 6 | Ingresos: quién está adentro, ingresos del día y últimos movimientos | `/visitas` | ADMIN |
+| 6 | Reportes de ocupación (franja horaria, horarios pico) | `/reportes` | ADMIN · **falta** |
 
 Fuera del flujo principal:
 
@@ -130,6 +131,8 @@ Fuera del flujo principal:
 | Mis reservas (H4, H5) | `/reservas` | SOCIO |
 | Detalle de una reserva | `/reservas/:id` | SOCIO, solo si es suya (si no, 404) |
 | Reservar una clase (H4) | `/clases` | SOCIO · clase 12 |
+| Inscriptos de una clase (base de H6) | `/clases/:id` | ADMIN (todas) y PROFESOR (solo las que dicta; la de otro, 404). Se llega desde el nombre de la clase en el inicio |
+| Socios y su membresía (H8 vista por recepción) | `/socios` | ADMIN |
 | Galería de componentes | `/sistema` | Con sesión. Herramienta del equipo: no está enlazada en la interfaz, se abre por la dirección |
 
 Lo que el mapa deja a la vista:
