@@ -7,9 +7,12 @@
  * Lee la base de `.env.local` (o de las variables del entorno). Las cuentas
  * reales NO se escriben en el repo: se pasan al correrlo, separadas por coma.
  *
- *   DEMO_SOCIO_EMAIL="alguien@gmail.com"   socio que escanea y reserva
- *   SEED_PROFESOR_EMAIL="otra@gmail.com"   (opcional) profesor de varias clases
- *   SEED_ADMIN_EMAIL="otra-mas@gmail.com"  (opcional) admin
+ *   DEMO_SOCIO_EMAIL="alguien@gmail.com"     socio que escanea y reserva
+ *   DEMO_PROFESOR_EMAIL="otra@gmail.com"     (opcional) profesor de varias clases
+ *
+ * El script NUNCA le cambia el rol a una cuenta que ya existe: si la cuenta
+ * del socio o del profesor ya tiene otro rol, avisa y la saltea. Para subir a
+ * alguien a ADMIN o PROFESOR está el seed (SEED_ADMIN_EMAIL, SEED_PROFESOR_EMAIL).
  *
  * Tarda uno o dos minutos: son unas 200 consultas, una tras otra, contra la
  * base de Supabase (Canadá). Va mostrando el avance.
@@ -20,11 +23,14 @@
  *
  * Qué deja preparado para el guion:
  *   - Mañana a las 18:00, "Spinning" con un solo lugar libre: el socio de la
- *     demo reserva el último cupo y cualquier otro ya ve "sin cupo".
+ *     demo reserva el último cupo y cualquier otro ya ve "sin cupo". Se
+ *     rearma en CADA corrida (cupo 6, cinco reservas), aunque la clase ya
+ *     exista de un ensayo anterior.
  *   - El socio de la demo SIN visita abierta: el primer escaneo es un ingreso.
  *   - Una reserva ya hecha del socio, para que "Tus reservas" no esté vacío.
  */
 import { config as cargarEnv } from "dotenv";
+import { z } from "zod";
 import { PrismaClient, Rol, EstadoMembresia, EstadoVisita, MedioPago, EstadoPago, type Plan, type User } from "@prisma/client";
 
 // Las mismas variables que usan la app y el seed (prisma.config.ts).
@@ -41,8 +47,27 @@ function horaArgentina(dias: number, hora: number, minuto = 0): Date {
   return new Date(Date.UTC(hoyAr.getUTCFullYear(), hoyAr.getUTCMonth(), hoyAr.getUTCDate() + dias, hora + OFFSET_ARGENTINA_HORAS, minuto));
 }
 
-function mails(variable: string | undefined): string[] {
-  return (variable ?? "").split(",").map((m) => m.trim().toLowerCase()).filter(Boolean);
+const listaDeMails = z.array(z.string().trim().toLowerCase().email());
+
+/** Mails separados por coma; si alguno no es un mail, corta antes de tocar la base. */
+function mails(nombre: string): string[] {
+  const crudos = (process.env[nombre] ?? "").split(",").filter((m) => m.trim() !== "");
+  const validacion = listaDeMails.safeParse(crudos);
+  if (!validacion.success) throw new Error(`${nombre} tiene un mail inválido: ${crudos.join(", ")}`);
+  return validacion.data;
+}
+
+/**
+ * Busca la cuenta real o la crea con `rol`. Si ya existe con OTRO rol, no la
+ * toca (podría ser un admin o un socio de verdad) y devuelve null.
+ */
+async function cuentaReal(email: string, rol: Rol): Promise<User | null> {
+  const existente = await prisma.user.findUnique({ where: { email } });
+  if (existente && existente.rol !== rol) {
+    console.warn(`${email} es ${existente.rol}: no se cambia a ${rol}. Se saltea.`);
+    return null;
+  }
+  return existente ?? usuario(email, email.split("@")[0] ?? email, rol);
 }
 
 async function usuario(email: string, nombre: string, rol: Rol): Promise<User> {
@@ -85,8 +110,24 @@ async function reservar(socioId: string, claseId: string) {
   return existente ?? prisma.reserva.create({ data: { socioId, claseId } });
 }
 
+/**
+ * La clase del "último cupo": cupo 6 y exactamente cinco reservas
+ * confirmadas, de los socios de ejemplo. Cualquier otra reserva confirmada
+ * (por ejemplo, la del socio de la demo en un ensayo) se cancela, así el
+ * guion se puede repetir.
+ */
+async function dejarUnLugarLibre(claseId: string, cinco: User[]) {
+  const ids = cinco.map((s) => s.id);
+  await prisma.clase.update({ where: { id: claseId }, data: { cupoMaximo: ids.length + 1 } });
+  await prisma.reserva.updateMany({ where: { claseId, estado: "CONFIRMADA", socioId: { notIn: ids } }, data: { estado: "CANCELADA" } });
+  for (const id of ids) await reservar(id, claseId);
+}
+
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error("Falta DATABASE_URL: completá .env.local antes de correr la demo.");
+  // Los mails se validan antes de escribir nada en la base.
+  const mailsSocio = mails("DEMO_SOCIO_EMAIL");
+  const mailsProfesor = mails("DEMO_PROFESOR_EMAIL");
 
   console.log("Conectando a la base y cargando planes…");
   const { mensual, trimestral, anual } = await planes();
@@ -97,11 +138,9 @@ async function main() {
     await usuario("lucia.gomez@ejemplo.com", "Lucía Gómez", Rol.PROFESOR),
     await usuario("martin.ruiz@ejemplo.com", "Martín Ruiz", Rol.PROFESOR),
   ];
-  for (const email of mails(process.env.SEED_PROFESOR_EMAIL)) {
-    profes.unshift(await prisma.user.upsert({ where: { email }, update: { rol: Rol.PROFESOR }, create: { email, nombre: email, rol: Rol.PROFESOR } }));
-  }
-  for (const email of mails(process.env.SEED_ADMIN_EMAIL)) {
-    await prisma.user.upsert({ where: { email }, update: { rol: Rol.ADMIN }, create: { email, nombre: email, rol: Rol.ADMIN } });
+  for (const email of mailsProfesor) {
+    const profesor = await cuentaReal(email, Rol.PROFESOR);
+    if (profesor) profes.unshift(profesor);
   }
 
   console.log("Socios de ejemplo…");
@@ -109,7 +148,7 @@ async function main() {
   const nombres = ["Valentina Pérez", "Tomás Fernández", "Camila López", "Joaquín Martínez", "Sofía Romero", "Mateo Díaz", "Martina Álvarez", "Benjamín Torres"];
   const socios: User[] = [];
   for (const [i, nombre] of nombres.entries()) {
-    const email = `${nombre.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(" ", ".")}@ejemplo.com`;
+    const email = `${nombre.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(" ", ".")}@ejemplo.com`;
     const socio = await usuario(email, nombre, Rol.SOCIO);
     await asegurarMembresia(socio.id, i % 3 === 0 ? anual : i % 3 === 1 ? trimestral : mensual, 5 + i * 3);
     socios.push(socio);
@@ -136,8 +175,8 @@ async function main() {
         cupoMaximo: ultimoCupo ? 6 : item.cupoMaximo, inicio: horaArgentina(dia, item.hora, item.minuto ?? 0),
         duracionMin: item.duracionMin, sala: item.sala,
       });
-      const cuantas = ultimoCupo ? 5 : (dia * 3 + j * 2) % 7;
-      for (const socio of socios.slice(0, cuantas)) await reservar(socio.id, c.id);
+      if (ultimoCupo) await dejarUnLugarLibre(c.id, socios.slice(0, 5));
+      else for (const socio of socios.slice(0, (dia * 3 + j * 2) % 7)) await reservar(socio.id, c.id);
       creadas.push({ c, dia, item });
       console.log(`Clase ${creadas.length}: ${item.nombre} ${c.inicio.toISOString().slice(0, 16)} UTC`);
     }
@@ -145,13 +184,9 @@ async function main() {
 
   // Las cuentas reales del socio de la demo.
   const yoga = creadas.find(({ dia, item }) => dia >= 2 && item.nombre === "Yoga")?.c;
-  for (const email of mails(process.env.DEMO_SOCIO_EMAIL)) {
-    const existente = await prisma.user.findUnique({ where: { email } });
-    if (existente && existente.rol !== Rol.SOCIO) {
-      console.warn(`${email} es ${existente.rol}: no se cambia a SOCIO. Usá otra cuenta para mostrar el escaneo.`);
-      continue;
-    }
-    const socio = existente ?? (await usuario(email, email.split("@")[0] ?? email, Rol.SOCIO));
+  for (const email of mailsSocio) {
+    const socio = await cuentaReal(email, Rol.SOCIO);
+    if (!socio) continue;
     await asegurarMembresia(socio.id, mensual, 3);
     if (yoga) await reservar(socio.id, yoga.id);
     // Sin visita abierta: el primer escaneo de la demo tiene que ser un ingreso.

@@ -89,25 +89,46 @@ jobs:
 
       # Los datos de la demo se cargan a mano contra la base real; acá se
       # prueba en la base descartable que el script corre y que correrlo dos
-      # veces no duplica nada (cuenta las clases antes y después).
+      # veces no duplica nada: cuenta clases, reservas y membresías después de
+      # cada corrida y exige que sean iguales.
       - name: Seed y datos de demo corren (dos veces, sin duplicar)
         env:
           DEMO_SOCIO_EMAIL: socio-demo@ejemplo.com
         run: |
+          set -o pipefail
+          cat > contar.cjs <<'JS'
+          const { PrismaClient } = require("@prisma/client");
+          const p = new PrismaClient();
+          (async () => {
+            const socio = { email: "socio-demo@ejemplo.com" };
+            const conteo = {
+              clases: await p.clase.count(),
+              reservas: await p.reserva.count({ where: { estado: "CONFIRMADA" } }),
+              membresias: await p.membresia.count(),
+              activasDelSocio: await p.membresia.count({ where: { estado: "ACTIVA", fechaFin: { gt: new Date() }, socio } }),
+              abiertasDelSocio: await p.visita.count({ where: { estado: "ABIERTA", socio } }),
+            };
+            // La clase del último cupo: tiene que quedar 6 de cupo y 5 reservas.
+            const ultimo = await p.clase.findFirst({ where: { nombre: "Spinning", cupoMaximo: 6 }, include: { reservas: { where: { estado: "CONFIRMADA" } } } });
+            conteo.ultimoCupo = ultimo ? `${ultimo.reservas.length}/${ultimo.cupoMaximo}` : null;
+            if (process.argv[2] === "ensayo" && ultimo) {
+              // Simula un ensayo: el socio de la demo ya tomó el último lugar.
+              const s = await p.user.findUnique({ where: socio });
+              await p.reserva.create({ data: { socioId: s.id, claseId: ultimo.id } });
+            }
+            console.log(JSON.stringify(conteo));
+            await p.$disconnect();
+          })();
+          JS
           npm run db:seed
           npm run db:demo
+          node contar.cjs ensayo > primera.json
           npm run db:demo | tee demo.log
+          node contar.cjs > segunda.json
           node -e '
-            const { PrismaClient } = require("@prisma/client");
-            const p = new PrismaClient();
-            (async () => {
-              const clases = await p.clase.count();
-              const reservas = await p.reserva.count({ where: { estado: "CONFIRMADA" } });
-              const abiertas = await p.visita.count({ where: { estado: "ABIERTA", socio: { email: "socio-demo@ejemplo.com" } } });
-              const activa = await p.membresia.count({ where: { estado: "ACTIVA", fechaFin: { gt: new Date() }, socio: { email: "socio-demo@ejemplo.com" } } });
-              console.log({ clases, reservas, abiertas, activa });
-              if (activa !== 1 || abiertas !== 0) process.exit(1);
-              await p.$disconnect();
-            })();
+            const a = require("./primera.json"), b = require("./segunda.json");
+            console.log({ primera: a, segunda: b });
+            if (JSON.stringify(a) !== JSON.stringify(b)) { console.error("La segunda corrida cambió los conteos: duplica datos."); process.exit(1); }
+            if (b.activasDelSocio !== 1 || b.abiertasDelSocio !== 0 || b.ultimoCupo !== "5/6") process.exit(1);
           '
           grep -q "Socio de la demo listo" demo.log
