@@ -86,3 +86,28 @@ jobs:
             console.log(`pasaron ${r.numPassedTests}, fallaron ${r.numFailedTests}, salteados ${r.numPendingTests + r.numTodoTests}`);
             if (r.numPassedTests === 0 || r.numFailedTests > 0 || r.numPendingTests + r.numTodoTests > 0) process.exit(1);
           '
+
+      # Los datos de la demo se cargan a mano contra la base real; acá se
+      # prueba en la base descartable que el script corre y que correrlo dos
+      # veces no duplica nada (cuenta las clases antes y después).
+      - name: Seed y datos de demo corren (dos veces, sin duplicar)
+        env:
+          DEMO_SOCIO_EMAIL: socio-demo@ejemplo.com
+        run: |
+          npm run db:seed
+          npm run db:demo
+          npm run db:demo | tee demo.log
+          node -e '
+            const { PrismaClient } = require("@prisma/client");
+            const p = new PrismaClient();
+            (async () => {
+              const clases = await p.clase.count();
+              const reservas = await p.reserva.count({ where: { estado: "CONFIRMADA" } });
+              const abiertas = await p.visita.count({ where: { estado: "ABIERTA", socio: { email: "socio-demo@ejemplo.com" } } });
+              const activa = await p.membresia.count({ where: { estado: "ACTIVA", fechaFin: { gt: new Date() }, socio: { email: "socio-demo@ejemplo.com" } } });
+              console.log({ clases, reservas, abiertas, activa });
+              if (activa !== 1 || abiertas !== 0) process.exit(1);
+              await p.$disconnect();
+            })();
+          '
+          grep -q "Socio de la demo listo" demo.log
