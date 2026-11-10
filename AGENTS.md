@@ -23,7 +23,8 @@ Este archivo lo lee tu asistente de IA (Cursor, Copilot, Claude Code, etc.) ante
 npm run dev          # desarrollo
 npm run build        # build de producción
 npm run typecheck    # chequeo de tipos
-npm test         # tests
+npm test             # pruebas de dominio y handlers (vitest)
+npm run test:e2e     # flujo principal y permisos (Playwright, base local de .env.e2e)
 npx prisma migrate dev --name <nombre>
 ```
 
@@ -71,6 +72,29 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - **Vacío y sin resultados no dicen lo mismo.** "Todavía no tenés…" lo resuelve el servidor con `<SinDatos>`; "ninguno coincide…" lo resuelve el componente que tiene el filtro, porque es el único que sabe qué se eligió.
 - La pantalla de error no muestra el mensaje de la excepción: el detalle va a `console.error`.
 - Un 404 no menciona "permiso": "no existe" y "no es tuya" usan el mismo texto.
+
+### Pruebas (Clase 13)
+- **Las pruebas cambian cuando cambia la spec o el contrato, no cuando cambia el código.** Un
+  refactor no toca las pruebas; si las rompe, cambió un comportamiento que no tenía que cambiar.
+  Nunca se "arregla" una prueba roja cambiando el valor esperado.
+- **Las reglas de dominio se prueban como funciones**, con vitest, en un `*.test.ts` al lado del
+  archivo (`lib/visita.test.ts`). Sin base, sin red, sin congelar el reloj: el `ahora` entra por
+  parámetro. **Una regla nueva o modificada (sección 6 de la spec) entra con su prueba en el mismo PR.**
+- **El flujo principal de la spec tiene su prueba de punta a punta** en
+  `e2e/flujo-principal.spec.ts`: un `test.step` por paso de la sección 5, con al menos un caso de
+  error en el medio. Si el flujo cambia en la spec, cambia la prueba en el mismo PR.
+- **Cada celda de la matriz de permisos de `docs/api.md` tiene su caso en `e2e/permisos.spec.ts`**
+  (401, 403 o 404, según la matriz). Un endpoint nuevo entra con su fila en el contrato y su caso
+  en la prueba. Se escriben mirando el contrato, no el código.
+- **Toda prueba nueva se ve fallar al menos una vez** (por ejemplo, quitando a propósito un
+  `requerirUsuario("ROL")`), y se cuenta en el PR.
+- Las pruebas e2e buscan como una persona: `getByLabel`, `getByRole`, `getByText`. Nunca por
+  clase de CSS ni por un id generado.
+- **Las pruebas e2e nunca corren contra la base de producción.** Usan la de `.env.e2e`;
+  `playwright.config.ts` y `e2e/preparar.ts` se niegan a arrancar si no es local.
+- No se agrega un "modo prueba" a la app (usuarios mágicos, `if (process.env.E2E)`): la sesión de
+  las pruebas se fabrica afuera, con el secreto de prueba (`e2e/preparar.ts`).
+- Un caso de uso no se prueba reemplazando la base por un simulacro: eso prueba el simulacro.
 
 ### Estilos
 - Solo Tailwind. Nada de CSS suelto ni estilos inline salvo valores calculados en runtime.
