@@ -48,6 +48,8 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - **Todo acceso a la base pasa por `lib/db/`.** Está prohibido importar el cliente de Prisma en componentes o en `app/`.
 - El cliente de Prisma se importa solo desde `lib/db/client.ts`.
 - Toda consulta que devuelva listas tiene paginación o límite explícito.
+- **Toda regla de "uno solo", "una sola vez" o "no más de N" la hace cumplir la base, no un `if`** (clase 14): un índice único (`@@unique` o índice parcial en la migración) o la condición dentro del `updateMany`/la transacción SERIALIZABLE de `operarSocio`. El que pierde recibe 409, nunca 500. Cada regla así tiene su prueba de diez pedidos simultáneos en `e2e/concurrencia.spec.ts`, vista en rojo antes del arreglo.
+- `e2e/` es la única excepción a la regla del cliente de Prisma: las pruebas preparan y cuentan directo en una base local (`playwright.config.ts` se niega a correr contra otra).
 
 ### Validación
 - **Toda entrada externa se valida con un schema de Zod** definido en `lib/schemas/`. Entrada externa = body de un request, params, query string, formulario, respuesta de una API de terceros.

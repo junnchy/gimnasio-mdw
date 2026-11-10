@@ -31,3 +31,18 @@ npx prisma migrate dev
 npm run db:seed
 npm run dev
 ```
+
+## Pruebas
+```bash
+npm test             # dominio e integración (vitest)
+npm run test:e2e     # la app compilada contra una base local (Playwright)
+```
+`npm run test:e2e` necesita un Postgres local, nunca el de producción
+(`playwright.config.ts` se niega a arrancar si `DATABASE_URL` no es local). Se levanta
+una vez con Docker y usa las variables de `.env.e2e`:
+```bash
+docker run -d --name pulso-e2e -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=pulso_e2e -p 54330:5432 postgres:16-alpine
+npx playwright install chromium
+npm run test:e2e -- concurrencia
+```
