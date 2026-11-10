@@ -31,8 +31,7 @@ export async function operarSocio<T>(socioId: string, trabajo: (datos: DatosSoci
   for (let intento = 0; intento < 3; intento++) {
     try {
       return await prisma.$transaction((tx) => trabajo(repositorios(tx, socioId)), {
-        // TEMPORAL (clase 14): sin SERIALIZABLE, para ver la prueba de concurrencia en rojo. Se revierte en el commit siguiente.
-        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         maxWait: 10000,
         timeout: 15000,
       });
