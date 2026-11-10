@@ -9,6 +9,7 @@ import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { exigirBasesLocales } from "./base-local";
 import { COOKIE_SESION, valorDeSesion, type UsuarioDePrueba } from "./sesion";
 import { SESION } from "./sesiones";
 
@@ -28,6 +29,9 @@ async function guardarSesion(archivo: string, usuario: UsuarioDePrueba) {
 }
 
 export default async function preparar() {
+  // Otra vez acá, antes de migrar: `prisma migrate deploy` usa DIRECT_URL, y
+  // este control no depende de que alguien haya corrido la config primero.
+  exigirBasesLocales(process.env);
   execSync("npx prisma migrate deploy", { stdio: "inherit" });
   execSync("npx prisma db seed", { stdio: "inherit" });
 

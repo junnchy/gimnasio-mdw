@@ -11,24 +11,21 @@
 import path from "node:path";
 import { config as cargarEnv } from "dotenv";
 import { defineConfig, devices } from "@playwright/test";
+import { exigirBasesLocales } from "./e2e/base-local";
 
 // Las variables del CI ganan: dotenv no pisa lo que ya está definido.
 cargarEnv({ path: path.join(__dirname, ".env.e2e"), quiet: true });
 
-/**
- * El cinturón de seguridad. Estas pruebas reservan clases y crean socios:
- * corridas contra la base de producción, dejarían datos falsos en pantallas
- * reales. Si la base no es local, no se arranca.
- */
-const base = new URL(process.env.DATABASE_URL ?? "postgresql://sin-definir");
-if (!["localhost", "127.0.0.1"].includes(base.hostname)) {
-  throw new Error(`Las pruebas e2e solo corren contra una base local, y DATABASE_URL apunta a ${base.hostname}.`);
-}
+// El cinturón de seguridad: DATABASE_URL y DIRECT_URL tienen que ser locales
+// (e2e/base-local.ts). Si no, no se arranca ni se compila nada.
+exigirBasesLocales(process.env);
 
 const PUERTO = 3100;
 
 export default defineConfig({
   testDir: "e2e",
+  // Solo las `*.spec.ts`: las `*.test.ts` de e2e/ las corre vitest (base-local.test.ts).
+  testMatch: "**/*.spec.ts",
 
   // Una sola base para todas las pruebas: en fila, no en paralelo. Lo que
   // corre en paralelo son los pedidos DENTRO de una prueba (concurrencia).
