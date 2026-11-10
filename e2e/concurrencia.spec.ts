@@ -83,17 +83,35 @@ async function claseNueva(cupoMaximo: number, diasAdelante: number): Promise<Cla
   });
 }
 
-/** Un pedido de reserva con la sesión de `socio`. */
-async function reservar(request: APIRequestContext, socio: User, claseId: string) {
-  return request.post("/api/reservas", { data: { claseId }, headers: await headerDeSesion(socio) });
+/**
+ * Las cookies se arman ANTES de disparar: si cada pedido cifrara la suya al
+ * salir, saldrían escalonados por unos milisegundos y la carrera se achica.
+ */
+async function sesiones(lista: readonly User[]) {
+  return Promise.all(lista.map((socio) => headerDeSesion(socio)));
+}
+
+/**
+ * Calentamiento: un pedido por socio, todos juntos, que solo LEE (GET
+ * /api/reservas). Con el servidor recién levantado, la ruta todavía no está
+ * cargada y Prisma abre las conexiones de a una: el primer tren de pedidos
+ * llegaría a la base en fila y la prueba pasaría por casualidad. En
+ * producción el servidor ya está caliente; esto lo deja igual.
+ */
+async function calentar(request: APIRequestContext, headers: readonly { Cookie: string }[]) {
+  await Promise.all(headers.map((h) => request.get("/api/reservas", { headers: h })));
 }
 
 test(`${PEDIDOS_A_LA_VEZ} socios por el último lugar: entra uno solo`, async ({ request }) => {
   const clase = await claseNueva(1, 3);
+  const headers = await sesiones(socios);
+  await calentar(request, headers);
 
   // `Promise.all` y no un `for` con `await`: salen todos juntos, sin esperar
   // la respuesta del anterior. Diez personas empujando la misma puerta.
-  const respuestas = await Promise.all(socios.map((socio) => reservar(request, socio, clase.id)));
+  const respuestas = await Promise.all(
+    headers.map((h) => request.post("/api/reservas", { data: { claseId: clase.id }, headers: h })),
+  );
   const status = respuestas.map((r) => r.status()).sort((a, b) => a - b);
 
   expect(status).toEqual([201, ...Array(PEDIDOS_A_LA_VEZ - 1).fill(409)]);
@@ -108,8 +126,12 @@ test(`el mismo socio, ${PEDIDOS_A_LA_VEZ} veces la misma reserva: queda una`, as
   const [socio] = socios;
   if (!socio) throw new Error("beforeAll no creó los socios");
 
+  const [h] = await sesiones([socio]);
+  if (!h) throw new Error("no se armó la sesión");
+  await calentar(request, Array(PEDIDOS_A_LA_VEZ).fill(h));
+
   const respuestas = await Promise.all(
-    Array.from({ length: PEDIDOS_A_LA_VEZ }, () => reservar(request, socio, clase.id)),
+    Array.from({ length: PEDIDOS_A_LA_VEZ }, () => request.post("/api/reservas", { data: { claseId: clase.id }, headers: h })),
   );
   const status = respuestas.map((r) => r.status()).sort((a, b) => a - b);
 
