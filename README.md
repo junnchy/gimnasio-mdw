@@ -42,7 +42,7 @@ Dos capas, con dos comandos:
   compila la app en `.next-e2e` y la levanta en el puerto 3100, así que no choca con `npm run dev`.
 
 Las e2e **nunca corren contra la base de producción**: `playwright.config.ts` se niega a arrancar
-si `DATABASE_URL` no es local. La primera vez:
+si `DATABASE_URL` y `DIRECT_URL` no apuntan a localhost y a la base `pulso_e2e`. La primera vez:
 
 ```bash
 docker run -d --name pulso-e2e -e POSTGRES_PASSWORD=postgres \

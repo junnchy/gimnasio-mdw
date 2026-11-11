@@ -15,12 +15,15 @@ export const SESION = {
 /** La imagen del QR de la puerta, con el `QR_TOKEN` de `.env.e2e`. */
 export const QR_DE_LA_PUERTA = path.join(carpeta, "qr-puerta.png");
 
-/** Los ids que las pruebas necesitan conocer (la clase y la reserva de prueba). */
+/** Los ids que las pruebas necesitan conocer (lo que `preparar.ts` creó o encontró). */
 export const DATOS = path.join(carpeta, "datos.json");
 
 export type DatosDePrueba = {
   claseId: string;
   reservaId: string;
+  rutinaId: string;
+  ejercicioId: string;
+  planId: string;
 };
 
 /** Las personas de las pruebas. Las que no están en el seed las crea `preparar.ts`. */

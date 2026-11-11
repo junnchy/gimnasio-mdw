@@ -38,16 +38,28 @@ const CLASE = {
   sala: "Principal",
 };
 const ESCANEO = { qrToken: "un-token-cualquiera" };
+const RUTINA = { nombre: "Rutina intrusa" };
+const ITEM_DE_RUTINA = () => ({ ejercicioId: datos().ejercicioId, series: 3, repeticiones: 10, descansoSeg: 60, orden: 9 });
 
-/** Lo que cada fila del contrato permite, por endpoint. */
+/**
+ * Cada operación de las tablas de `docs/api.md`, por endpoint. Si el contrato
+ * suma una ruta, se suma acá y en las listas de abajo.
+ *
+ * No están, a propósito: `POST /api/pagos/webhook` (lo llama Mercado Pago, sin
+ * sesión, por contrato) y `/api/auth/*` (público). El cierre diario tiene sus
+ * casos propios, porque se autentica con un secreto y no con una sesión.
+ */
 const ENDPOINT = {
   listarPlanes: ["GET /api/planes", (api) => api.get("/api/planes")],
   crearPlan: ["POST /api/planes", (api) => api.post("/api/planes", { data: PLAN })],
+  corregirPlan: ["PATCH /api/planes/:id", (api) => api.patch(`/api/planes/${datos().planId}`, { data: { precio: 1 } })],
   asignarMembresia: ["POST /api/membresias", (api) => api.post("/api/membresias", { data: {} })],
   registrarPago: ["POST /api/pagos", (api) => api.post("/api/pagos", { data: {} })],
   miMembresia: ["GET /api/membresias/mia", (api) => api.get("/api/membresias/mia")],
   listarClases: ["GET /api/clases", (api) => api.get("/api/clases")],
+  verClase: ["GET /api/clases/:id", (api) => api.get(`/api/clases/${datos().claseId}`)],
   programarClase: ["POST /api/clases", (api) => api.post("/api/clases", { data: CLASE })],
+  corregirClase: ["PATCH /api/clases/:id", (api) => api.patch(`/api/clases/${datos().claseId}`, { data: { sala: "Otra" } })],
   misReservas: ["GET /api/reservas", (api) => api.get("/api/reservas")],
   reservar: ["POST /api/reservas", (api) => api.post("/api/reservas", { data: { claseId: datos().claseId } })],
   cancelar: ["POST /api/reservas/:id/cancelacion", (api) => api.post(`/api/reservas/${datos().reservaId}/cancelacion`)],
@@ -56,6 +68,11 @@ const ENDPOINT = {
   escanear: ["POST /api/visitas/escaneos", (api) => api.post("/api/visitas/escaneos", { data: ESCANEO })],
   misRutinas: ["GET /api/rutinas/mia", (api) => api.get("/api/rutinas/mia")],
   crearRutina: ["POST /api/rutinas", (api) => api.post("/api/rutinas", { data: {} })],
+  corregirRutina: ["PATCH /api/rutinas/:id", (api) => api.patch(`/api/rutinas/${datos().rutinaId}`, { data: RUTINA })],
+  agregarARutina: [
+    "POST /api/rutinas/:id/ejercicios",
+    (api) => api.post(`/api/rutinas/${datos().rutinaId}/ejercicios`, { data: ITEM_DE_RUTINA() }),
+  ],
   verEjercicios: ["GET /api/ejercicios", (api) => api.get("/api/ejercicios")],
   agregarEjercicio: ["POST /api/ejercicios", (api) => api.post("/api/ejercicios", { data: {} })],
 } satisfies Record<string, [string, Pedido]>;
@@ -94,8 +111,9 @@ test.describe("el rol equivocado: 403", () => {
     // Planes, membresías y pagos son de Admin; clases, rutinas, ejercicios y
     // asistencia, de Profesor. Aunque la reserva sea suya, no se marca presente.
     noPuede(
-      ["listarPlanes", "crearPlan", "asignarMembresia", "registrarPago", "programarClase",
-        "marcarAsistencia", "crearRutina", "verEjercicios", "agregarEjercicio"],
+      ["listarPlanes", "crearPlan", "corregirPlan", "asignarMembresia", "registrarPago", "programarClase",
+        "corregirClase", "marcarAsistencia", "crearRutina", "corregirRutina", "agregarARutina",
+        "verEjercicios", "agregarEjercicio"],
       403,
     );
   });
@@ -105,7 +123,7 @@ test.describe("el rol equivocado: 403", () => {
     // Lo "propio" del socio (membresía, reservas, visitas, rutinas) no es
     // del profesor, y el dinero es de Admin.
     noPuede(
-      ["listarPlanes", "crearPlan", "asignarMembresia", "registrarPago", "miMembresia",
+      ["listarPlanes", "crearPlan", "corregirPlan", "asignarMembresia", "registrarPago", "miMembresia",
         "misReservas", "reservar", "cancelar", "misVisitas", "escanear", "misRutinas"],
       403,
     );
@@ -115,8 +133,9 @@ test.describe("el rol equivocado: 403", () => {
     test.use({ storageState: SESION.admin });
     // Admin administra: no programa clases ni escanea la puerta.
     noPuede(
-      ["miMembresia", "programarClase", "misReservas", "reservar", "cancelar", "marcarAsistencia",
-        "misVisitas", "escanear", "misRutinas", "crearRutina", "verEjercicios", "agregarEjercicio"],
+      ["miMembresia", "programarClase", "corregirClase", "misReservas", "reservar", "cancelar",
+        "marcarAsistencia", "misVisitas", "escanear", "misRutinas", "crearRutina", "corregirRutina",
+        "agregarARutina", "verEjercicios", "agregarEjercicio"],
       403,
     );
   });
@@ -162,6 +181,33 @@ test.describe("lo ajeno no existe: 404", () => {
     test("no ve los inscriptos de la clase de otro profesor", async ({ page }) => {
       await page.goto(`/clases/${datos().claseId}`);
       await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
+    });
+
+    // Matriz: "Corregir rutina, agregarle ejercicios — ✓ propias".
+    test("no corrige la rutina de otro profesor", async ({ request }) => {
+      const respuesta = await request.patch(`/api/rutinas/${datos().rutinaId}`, { data: RUTINA });
+      expect(respuesta.status()).toBe(404);
+    });
+
+    test("no le agrega ejercicios a la rutina de otro profesor", async ({ request }) => {
+      const respuesta = await request.post(`/api/rutinas/${datos().rutinaId}/ejercicios`, { data: ITEM_DE_RUTINA() });
+      expect(respuesta.status()).toBe(404);
+    });
+  });
+
+  // El control: el mismo pedido, de quien sí es dueño, no da 404. Sin esto, los
+  // 404 de arriba pasarían igual si el id estuviera mal o la fila no existiera.
+  test.describe("el profesor que sí la dicta", () => {
+    test.use({ storageState: SESION.profesor });
+
+    test("encuentra su clase y la corrige", async ({ request }) => {
+      const respuesta = await request.patch(`/api/clases/${datos().claseId}`, { data: { sala: "Principal" } });
+      expect(respuesta.status()).toBe(200);
+    });
+
+    test("encuentra su rutina y la corrige", async ({ request }) => {
+      const respuesta = await request.patch(`/api/rutinas/${datos().rutinaId}`, { data: { nombre: "Rutina E2E" } });
+      expect(respuesta.status()).toBe(200);
     });
   });
 });

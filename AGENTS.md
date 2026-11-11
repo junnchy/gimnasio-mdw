@@ -91,7 +91,10 @@ Después de tocar `prisma/schema.prisma`, siempre generar una migración. Nunca 
 - Las pruebas e2e buscan como una persona: `getByLabel`, `getByRole`, `getByText`. Nunca por
   clase de CSS ni por un id generado.
 - **Las pruebas e2e nunca corren contra la base de producción.** Usan la de `.env.e2e`;
-  `playwright.config.ts` y `e2e/preparar.ts` se niegan a arrancar si no es local.
+  `playwright.config.ts` y `e2e/preparar.ts` se niegan a arrancar si `DATABASE_URL` y `DIRECT_URL`
+  no apuntan, las dos, a localhost y a la base descartable `pulso_e2e`.
+- **Cada intento de una prueba e2e parte del mismo estado.** Si una prueba cambia datos que ella
+  misma necesita (la visita de la socia), los restaura en un `beforeEach`: en CI se reintenta.
 - No se agrega un "modo prueba" a la app (usuarios mágicos, `if (process.env.E2E)`): la sesión de
   las pruebas se fabrica afuera, con el secreto de prueba (`e2e/preparar.ts`).
 - Un caso de uso no se prueba reemplazando la base por un simulacro: eso prueba el simulacro.

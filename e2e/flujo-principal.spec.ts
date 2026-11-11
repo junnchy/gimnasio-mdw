@@ -22,7 +22,19 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { expect, test, type Page } from "@playwright/test";
+import { reiniciarSocia } from "./estado";
 import { PERSONAS, QR_DE_LA_PUERTA, SESION } from "./sesiones";
+
+// Cada intento parte del mismo punto: en CI una prueba que falla se
+// reintenta, y el primer intento puede haber dejado la visita abierta.
+test.beforeEach(async () => {
+  const prisma = new PrismaClient();
+  try {
+    await reiniciarSocia(prisma);
+  } finally {
+    await prisma.$disconnect();
+  }
+});
 
 /** Paso 1: la persona elige la imagen del QR de la puerta (el navegador de CI no tiene cámara). */
 async function escanear(pagina: Page) {

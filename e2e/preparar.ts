@@ -24,10 +24,11 @@
 import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { EstadoMembresia, PrismaClient, Rol, type User } from "@prisma/client";
+import { PrismaClient, Rol, type User } from "@prisma/client";
 import { encode } from "next-auth/jwt";
 import QRCode from "qrcode";
 import { exigirBaseLocal } from "./base-local";
+import { reiniciarSocia } from "./estado";
 import { DATOS, PERSONAS, QR_DE_LA_PUERTA, SESION, type DatosDePrueba } from "./sesiones";
 
 /** El nombre de la cookie en http. En https Auth.js le agrega `__Secure-`. */
@@ -97,24 +98,14 @@ export default async function preparar() {
     const otroSocio = await crear(PERSONAS.otroSocio, Rol.SOCIO);
     const otroProfesor = await crear(PERSONAS.otroProfesor, Rol.PROFESOR);
 
-    // La socia del flujo arranca afuera del gimnasio y con la cuota al día:
-    // su primer escaneo tiene que ser un ingreso.
-    await prisma.visita.deleteMany({ where: { socioId: socio.id } });
-    const plan = await prisma.plan.findUniqueOrThrow({ where: { nombre: "Mensual" } });
+    // La socia del flujo arranca afuera del gimnasio y con la cuota al día.
+    await reiniciarSocia(prisma);
     const hoy = new Date();
-    await prisma.membresia.deleteMany({ where: { socioId: socio.id } });
-    await prisma.membresia.create({
-      data: {
-        socioId: socio.id,
-        planId: plan.id,
-        fechaInicio: hoy,
-        fechaFin: new Date(hoy.getTime() + 30 * DIA),
-        estado: EstadoMembresia.ACTIVA,
-      },
-    });
+    const plan = await prisma.plan.findUniqueOrThrow({ where: { nombre: "Mensual" } });
 
-    // Una clase del profe, la semana que viene, con una reserva de la socia:
-    // lo "propio" que los demás intentan tocar en e2e/permisos.spec.ts.
+    // Lo "propio" que los demás intentan tocar en e2e/permisos.spec.ts: una
+    // clase del profe, la semana que viene, con una reserva de la socia, y
+    // una rutina que el profe le armó.
     const clase =
       (await prisma.clase.findFirst({ where: { nombre: "Clase E2E", profesorId: profesor.id } })) ??
       (await prisma.clase.create({
@@ -131,7 +122,20 @@ export default async function preparar() {
       (await prisma.reserva.findFirst({ where: { socioId: socio.id, claseId: clase.id } })) ??
       (await prisma.reserva.create({ data: { socioId: socio.id, claseId: clase.id } }));
 
-    const datos: DatosDePrueba = { claseId: clase.id, reservaId: reserva.id };
+    const rutina =
+      (await prisma.rutina.findFirst({ where: { nombre: "Rutina E2E", profesorId: profesor.id, socioId: socio.id } })) ??
+      (await prisma.rutina.create({ data: { nombre: "Rutina E2E", profesorId: profesor.id, socioId: socio.id } }));
+    // Un ejercicio que existe (del seed): si la profesora ajena recibe 404 al
+    // agregarlo, es por la rutina, no porque el ejercicio no exista.
+    const ejercicio = await prisma.ejercicio.findFirstOrThrow({ where: { nombre: "Sentadilla" } });
+
+    const datos: DatosDePrueba = {
+      claseId: clase.id,
+      reservaId: reserva.id,
+      rutinaId: rutina.id,
+      ejercicioId: ejercicio.id,
+      planId: plan.id,
+    };
     mkdirSync(path.dirname(DATOS), { recursive: true });
     writeFileSync(DATOS, JSON.stringify(datos));
 
