@@ -132,3 +132,53 @@ jobs:
             if (b.activasDelSocio !== 1 || b.abiertasDelSocio !== 0 || b.ultimoCupo !== "5/6") process.exit(1);
           '
           grep -q "Socio de la demo listo" demo.log
+
+  # Clases 13 y 14: el sistema entero, compilado como en Vercel, contra una base
+  # Postgres que nace con el job y muere con él (nunca la de producción).
+  # Por ahora corre e2e/concurrencia.spec.ts; el flujo principal y los permisos
+  # se suman en la misma carpeta.
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pulso_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Pisan a las de `.env.e2e`, que apuntan al puerto del Docker local.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pulso_e2e
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/pulso_e2e
+    steps:
+      - uses: actions/checkout@v4
+
+      # 22, la versión con la que corre Vercel: se prueba la app compilada.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar el navegador
+        run: npx playwright install --with-deps chromium
+
+      # Migraciones, seed, build y servidor: lo hace todo `npm run test:e2e`.
+      - name: Pruebas de punta a punta
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: recorrido-de-la-falla
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
