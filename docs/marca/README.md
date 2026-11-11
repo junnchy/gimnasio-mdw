@@ -10,7 +10,7 @@ tipografía, estados, tokens, aplicaciones y tono de voz.
 | Qué | Dónde |
 |---|---|
 | Colores, radio y fuentes (tokens) | `app/globals.css` (único lugar con colores escritos) |
-| Carga de tipografías | `app/layout.tsx` (`next/font/local`, archivos en `app/fonts/`) |
+| Carga de tipografías | `app/layout.tsx` (`next/font/local`, archivos en `app/fonts/`). Origen: `@fontsource-variable/inter` y `@fontsource-variable/space-grotesk` 5.3.0, subset latín, versión variable (archivos `*-latin-wght-normal.woff2`), licencia SIL OFL. Para actualizarlas: `npm pack` de esos paquetes y copiar esos archivos |
 | Logo en la interfaz | `components/logo.tsx` → `<Logo />` |
 | Favicon, ícono iOS, imagen para compartir | `app/favicon.ico`, `app/icon.svg`, `app/apple-icon.png`, `app/opengraph-image.png` |
 | Manifest e íconos de la PWA | `app/manifest.ts`, `public/icon-*.png` |

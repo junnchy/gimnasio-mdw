@@ -22,7 +22,8 @@
  * que conviene correrlo la noche anterior o el mismo día de la demo.
  *
  * Qué deja preparado para el guion:
- *   - Mañana a las 18:00, "Spinning" con un solo lugar libre: el socio de la
+ *   - El primer Spinning de las 18:00 de un día hábil (mañana, o el lunes si
+ *     se corre viernes o sábado), con un solo lugar libre: el socio de la
  *     demo reserva el último cupo y cualquier otro ya ve "sin cupo". Se
  *     rearma en CADA corrida (cupo 6, cinco reservas), aunque la clase ya
  *     exista de un ensayo anterior.
@@ -100,8 +101,17 @@ async function asegurarMembresia(socioId: string, plan: Plan, inicioHaceDias: nu
   });
 }
 
-async function clase(datos: { nombre: string; profesorId: string; cupoMaximo: number; inicio: Date; duracionMin: number; sala: string }) {
-  const existente = await prisma.clase.findFirst({ where: { nombre: datos.nombre, inicio: datos.inicio } });
+/**
+ * Busca la clase solo entre las de los profesores del script: una clase real
+ * con el mismo nombre y horario, de otro profesor, no se toca.
+ */
+async function clase(
+  datos: { nombre: string; profesorId: string; cupoMaximo: number; inicio: Date; duracionMin: number; sala: string },
+  profesoresDelScript: readonly string[],
+) {
+  const existente = await prisma.clase.findFirst({
+    where: { nombre: datos.nombre, inicio: datos.inicio, profesorId: { in: [...profesoresDelScript] } },
+  });
   return existente ?? prisma.clase.create({ data: datos });
 }
 
@@ -161,20 +171,24 @@ async function main() {
     { hora: 19, minuto: 30, nombre: "Yoga", duracionMin: 60, cupoMaximo: 12, sala: "Sala 3" },
   ];
   const creadas = [];
+  const idsProfes = profes.map((p) => p.id);
+  let ultimoCupoListo = false;
   for (let dia = 1; dia <= 7; dia++) {
     const fecha = horaArgentina(dia, 12);
     const diaSemana = fecha.getUTCDay(); // 0 domingo … 6 sábado
     if (diaSemana === 0) continue;
     const delDia = diaSemana === 6 ? [{ hora: 10, nombre: "Spinning", duracionMin: 50, cupoMaximo: 20, sala: "Principal" }] : grilla;
     for (const [j, item] of delDia.entries()) {
-      // Mañana a las 18: el Spinning con un solo lugar libre para la demo.
-      const ultimoCupo = dia === 1 && item.hora === 18;
+      // El primer Spinning de las 18 de la semana: con un solo lugar libre.
+      // No "mañana": un viernes o un sábado, mañana no hay clase a las 18.
+      const ultimoCupo = !ultimoCupoListo && item.hora === 18;
+      if (ultimoCupo) ultimoCupoListo = true;
       const profesor = profes[(dia + j) % profes.length] ?? profes[0]!;
       const c = await clase({
         nombre: item.nombre, profesorId: profesor.id,
         cupoMaximo: ultimoCupo ? 6 : item.cupoMaximo, inicio: horaArgentina(dia, item.hora, item.minuto ?? 0),
         duracionMin: item.duracionMin, sala: item.sala,
-      });
+      }, idsProfes);
       if (ultimoCupo) await dejarUnLugarLibre(c.id, socios.slice(0, 5));
       else for (const socio of socios.slice(0, (dia * 3 + j * 2) % 7)) await reservar(socio.id, c.id);
       creadas.push({ c, dia, item });

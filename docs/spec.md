@@ -151,6 +151,8 @@ Lo que el mapa deja a la vista:
 Las restricciones que **no** son obvias y que la IA no puede adivinar. Estas son las que hay que revisar a mano.
 
 - Solo socios con membresía ACTIVA pueden reservar clases y registrar ingreso.
+- La salida se registra siempre, aunque la membresía haya vencido mientras el socio entrenaba: si no, su visita quedaría ABIERTA hasta el cierre diario y se perdería la duración real (`puedeEscanear` en `lib/visita.ts`, commit c022a4e).
+- Los datos de contacto de un socio (su mail) los ve solo ADMIN. El profesor ve el nombre de los inscriptos de sus clases, no su mail (`/clases/:id`, PR #16).
 - Un socio no puede tener más de una visita ABIERTA simultánea.
 - Un socio no puede tener dos reservas en el mismo horario.
 - La duración de una visita se calcula de `ingresoAt`/`egresoAt` al leer, nunca se guarda (ADR 0003); una visita INCOMPLETA no computa duración.
