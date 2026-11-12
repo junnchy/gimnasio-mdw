@@ -1,24 +1,27 @@
 /**
- * Las pruebas de punta a punta (clases 13 y 14): el sistema entero, como lo
- * usa una persona o un programa desde afuera.
+ * Las pruebas de punta a punta (clases 13 y 14): el sistema entero, desde un
+ * navegador o pegándole a la API como un programa de afuera.
  *
- * Levanta la app compilada (`next build` + `next start`, lo mismo que corre en
- * Vercel) contra una base local y le pega por HTTP o con un navegador.
+ * Levanta la app compilada —`next build` + `next start`, lo mismo que corre
+ * en Vercel— contra una base local, y la maneja como una persona: entra a una
+ * pantalla, sube la imagen del QR, aprieta un botón y mira qué aparece.
  *
- *   npm test           dominio e integración, sin levantar la app (vitest)
- *   npm run test:e2e   el sistema entero, con base y servidor (esto)
+ *   npm test           las reglas de dominio, sin levantar nada (vitest)
+ *   npm run test:e2e   el sistema entero, con base y navegador (esto)
  */
 import path from "node:path";
 import { config as cargarEnv } from "dotenv";
 import { defineConfig, devices } from "@playwright/test";
-import { exigirBasesLocales } from "./e2e/base-local";
+import { exigirBaseLocal } from "./e2e/base-local";
 
-// Las variables del CI ganan: dotenv no pisa lo que ya está definido.
+// Las variables de CI ganan: dotenv no pisa lo que ya está definido. Y como
+// estas quedan en el entorno ANTES que nada, ni Prisma (`prisma.config.ts`)
+// ni Next leen la DATABASE_URL de `.env.local`: los dos tampoco pisan.
 cargarEnv({ path: path.join(__dirname, ".env.e2e"), quiet: true });
 
-// El cinturón de seguridad: DATABASE_URL y DIRECT_URL tienen que ser locales
-// (e2e/base-local.ts). Si no, no se arranca ni se compila nada.
-exigirBasesLocales(process.env);
+// El cinturón de seguridad: estas pruebas escanean, reservan y cargan el
+// seed. Contra la base de Supabase dejarían basura en pantallas reales.
+exigirBaseLocal();
 
 const PUERTO = 3100;
 
@@ -32,7 +35,7 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
 
-  // En CI se reintenta una vez; si pasa al segundo intento, el reporte la
+  // En CI se reintenta una vez. Si pasa al segundo intento, el reporte la
   // marca como "flaky": no es verde, es una prueba que hay que mirar.
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
@@ -41,6 +44,8 @@ export default defineConfig({
 
   use: {
     baseURL: `http://localhost:${PUERTO}`,
+    // Si una prueba falla, queda grabado el recorrido: pantallas, red y
+    // consola, paso a paso. Se abre con `npx playwright show-trace`.
     trace: "retain-on-failure",
   },
 
@@ -51,8 +56,8 @@ export default defineConfig({
     url: `http://localhost:${PUERTO}/ingresar`,
     reuseExistingServer: false,
     timeout: 300_000,
-    // En otra carpeta que la de `npm run dev`: compilar encima de un servidor
-    // de desarrollo que está corriendo lo rompe.
+    // En otra carpeta que la de `npm run dev`: compilar encima de un
+    // servidor de desarrollo que está corriendo lo rompe.
     env: { NEXT_DIST_DIR: ".next-e2e" },
   },
 });

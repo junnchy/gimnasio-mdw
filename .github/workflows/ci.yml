@@ -13,7 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Instalar dependencias
@@ -62,7 +62,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Instalar dependencias
@@ -133,12 +133,17 @@ jobs:
           '
           grep -q "Socio de la demo listo" demo.log
 
-  # Clases 13 y 14: el sistema entero, compilado como en Vercel, contra una base
-  # Postgres que nace con el job y muere con él (nunca la de producción).
-  # Por ahora corre e2e/concurrencia.spec.ts; el flujo principal y los permisos
-  # se suman en la misma carpeta.
+  # Clases 13 y 14: el sistema entero, en cada Pull Request. La app compilada,
+  # una base de verdad y un navegador: el flujo principal de la spec (§5), la
+  # matriz de permisos de docs/api.md y los pedidos simultáneos (e2e/).
+  #
+  # Corre aparte de `verificar` y en paralelo con él: si los tipos fallan, se
+  # sabe en un minuto, sin esperar a que compile y levante todo.
   e2e:
     runs-on: ubuntu-latest
+
+    # Una base Postgres que nace con el job y muere con él. Nunca la de
+    # producción: las pruebas cargan el seed, escanean y reservan.
     services:
       postgres:
         image: postgres:16-alpine
@@ -152,14 +157,17 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
     # Pisan a las de `.env.e2e`, que apuntan al puerto del Docker local.
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pulso_e2e
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/pulso_e2e
+
     steps:
       - uses: actions/checkout@v4
 
-      # 22, la versión con la que corre Vercel: se prueba la app compilada.
+      # 22, la versión con la que corre Vercel: lo que se prueba acá es la
+      # app compilada, y conviene compilarla igual que en producción.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -175,6 +183,9 @@ jobs:
       - name: Pruebas de punta a punta
         run: npm run test:e2e
 
+      # Si algo falla (o pasa recién al reintentar), el recorrido grabado
+      # queda para descargar desde la pestaña del job: pantallas, red y
+      # consola, paso a paso.
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
