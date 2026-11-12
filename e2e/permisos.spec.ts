@@ -22,7 +22,7 @@
  */
 import { readFileSync } from "node:fs";
 import { expect, test, type APIRequestContext, type APIResponse } from "@playwright/test";
-import { DATOS, SESION, type DatosDePrueba } from "./sesiones";
+import { DATOS, PERSONAS, SESION, type DatosDePrueba } from "./sesiones";
 
 const datos = (): DatosDePrueba => JSON.parse(readFileSync(DATOS, "utf8"));
 
@@ -97,6 +97,11 @@ test.describe("sin sesión: 401", () => {
     expect((await request.get("/api/visitas/cierre-diario")).status()).toBe(401);
   });
 
+  // El contrato lista GET (lo usa Vercel Cron) y POST (la prueba manual).
+  test("POST /api/visitas/cierre-diario sin x-cron-secret", async ({ request }) => {
+    expect((await request.post("/api/visitas/cierre-diario")).status()).toBe(401);
+  });
+
   test("GET /api/visitas/cierre-diario con un secreto equivocado", async ({ request }) => {
     const respuesta = await request.get("/api/visitas/cierre-diario", {
       headers: { authorization: "Bearer no-es-el-secreto" },
@@ -138,6 +143,34 @@ test.describe("el rol equivocado: 403", () => {
         "agregarARutina", "verEjercicios", "agregarEjercicio"],
       403,
     );
+  });
+
+  // Mapa de pantallas: /socios y /visitas son "ADMIN". El 403 de la API,
+  // traducido para una persona: el aviso, y ningún dato de los socios.
+  for (const [rol, sesion] of [["un socio", SESION.socio], ["un profesor", SESION.profesor]] as const) {
+    test.describe(`${rol}, en las pantallas de recepción`, () => {
+      test.use({ storageState: sesion });
+
+      for (const ruta of ["/socios", "/visitas"]) {
+        test(`${ruta} muestra el aviso y no los datos`, async ({ page }) => {
+          await page.goto(ruta);
+          await expect(page.getByText("Esta sección es para administración")).toBeVisible();
+          await expect(page.getByText(PERSONAS.otroSocio.email)).toHaveCount(0);
+        });
+      }
+    });
+  }
+
+  // El control: con la sesión de admin, las mismas pantallas sí muestran los
+  // datos. Sin esto, el "no los datos" de arriba pasaría con una pantalla vacía.
+  test.describe("el admin, en las pantallas de recepción", () => {
+    test.use({ storageState: SESION.admin });
+
+    test("/socios muestra a los socios", async ({ page }) => {
+      await page.goto("/socios");
+      await expect(page.getByRole("heading", { level: 1, name: "Socios" })).toBeVisible();
+      await expect(page.getByText(PERSONAS.otroSocio.email)).toBeVisible();
+    });
   });
 
   test.describe("una profesora que no dicta la clase", () => {

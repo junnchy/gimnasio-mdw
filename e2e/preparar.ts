@@ -10,10 +10,10 @@
  * a Google.
  *
  * Lo que hace Google, al final, es que Auth.js escriba una cookie cifrada con
- * el `AUTH_SECRET` (clase 6). Esto escribe LA MISMA cookie, con el mismo
- * secreto y la misma función —`encode`, de Auth.js— y con lo mismo adentro
- * que arma el callback `jwt` de `lib/auth.ts`, y la guarda en un archivo que
- * el navegador de la prueba carga antes de entrar.
+ * el `AUTH_SECRET` (clase 6). `e2e/sesion.ts` arma LA MISMA cookie, con el
+ * mismo secreto y la misma función —`encode`, de Auth.js— y con lo mismo
+ * adentro que arma el callback `jwt` de `lib/auth.ts`. Acá se guarda en un
+ * archivo que el navegador de la prueba carga antes de entrar.
  *
  * Fijate lo que NO hay: ningún "modo prueba" en `lib/auth.ts`, ningún usuario
  * mágico, ningún `if (process.env.E2E)`. Una puerta trasera para los tests es
@@ -24,55 +24,39 @@
 import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { PrismaClient, Rol, type User } from "@prisma/client";
-import { encode } from "next-auth/jwt";
+import { PrismaClient, Rol } from "@prisma/client";
 import QRCode from "qrcode";
 import { exigirBaseLocal } from "./base-local";
 import { reiniciarSocia } from "./estado";
+import { COOKIE_SESION, valorDeSesion, type UsuarioDePrueba } from "./sesion";
 import { DATOS, PERSONAS, QR_DE_LA_PUERTA, SESION, type DatosDePrueba } from "./sesiones";
 
-/** El nombre de la cookie en http. En https Auth.js le agrega `__Secure-`. */
-const COOKIE = "authjs.session-token";
 const DIA = 86_400_000;
 
-async function guardarSesion(archivo: string, usuario: User) {
-  // El contenido es el que arma el callback `jwt` de `lib/auth.ts`: el id de
-  // NUESTRA base y el rol. Por eso el usuario tiene que existir en la base.
-  const valor = await encode({
-    token: {
-      sub: usuario.id,
-      email: usuario.email,
-      name: usuario.nombre,
-      usuarioId: usuario.id,
-      rol: usuario.rol,
-    },
-    secret: process.env.AUTH_SECRET!,
-    salt: COOKIE,
-  });
-
+/**
+ * Guarda la cookie de `usuario` en el formato que carga el navegador de las
+ * pruebas (`test.use({ storageState })`). La cookie la arma `e2e/sesion.ts`,
+ * la misma que usa `concurrencia.spec.ts`: hay una sola forma de fabricarla.
+ * El usuario tiene que existir en la base: la cookie lleva su id y su rol.
+ */
+async function guardarSesion(archivo: string, usuario: UsuarioDePrueba) {
+  const cookie = {
+    name: COOKIE_SESION,
+    value: await valorDeSesion(usuario),
+    domain: "localhost",
+    path: "/",
+    expires: -1,
+    httpOnly: true,
+    secure: false,
+    sameSite: "Lax" as const,
+  };
   mkdirSync(path.dirname(archivo), { recursive: true });
-  writeFileSync(
-    archivo,
-    JSON.stringify({
-      cookies: [
-        {
-          name: COOKIE,
-          value: valor,
-          domain: "localhost",
-          path: "/",
-          expires: -1,
-          httpOnly: true,
-          secure: false,
-          sameSite: "Lax",
-        },
-      ],
-      origins: [],
-    }),
-  );
+  writeFileSync(archivo, JSON.stringify({ cookies: [cookie], origins: [] }));
 }
 
 export default async function preparar() {
-  // Otra vez, por si alguien corre este archivo sin pasar por la config.
+  // Otra vez acá, antes de migrar: `prisma migrate deploy` usa DIRECT_URL, y
+  // este control no depende de que alguien haya corrido la config primero.
   exigirBaseLocal();
 
   // La base, al día con las migraciones y con los datos del seed: cada

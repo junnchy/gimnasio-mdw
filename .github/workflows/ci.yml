@@ -133,9 +133,9 @@ jobs:
           '
           grep -q "Socio de la demo listo" demo.log
 
-  # Clase 13: el sistema entero, en cada Pull Request. La app compilada, una
-  # base de verdad y un navegador: el flujo principal de la spec (§5) y la
-  # matriz de permisos de docs/api.md (e2e/).
+  # Clases 13 y 14: el sistema entero, en cada Pull Request. La app compilada,
+  # una base de verdad y un navegador: el flujo principal de la spec (§5), la
+  # matriz de permisos de docs/api.md y los pedidos simultáneos (e2e/).
   #
   # Corre aparte de `verificar` y en paralelo con él: si los tipos fallan, se
   # sabe en un minuto, sin esperar a que compile y levante todo.

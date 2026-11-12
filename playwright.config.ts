@@ -1,5 +1,6 @@
 /**
- * Las pruebas de punta a punta (clase 13): el sistema entero, desde un navegador.
+ * Las pruebas de punta a punta (clases 13 y 14): el sistema entero, desde un
+ * navegador o pegándole a la API como un programa de afuera.
  *
  * Levanta la app compilada —`next build` + `next start`, lo mismo que corre
  * en Vercel— contra una base local, y la maneja como una persona: entra a una
@@ -26,8 +27,11 @@ const PUERTO = 3100;
 
 export default defineConfig({
   testDir: "e2e",
+  // Solo las `*.spec.ts`: las `*.test.ts` de e2e/ las corre vitest (base-local.test.ts).
+  testMatch: "**/*.spec.ts",
 
-  // Una sola base para todas las pruebas: en fila, no en paralelo.
+  // Una sola base para todas las pruebas: en fila, no en paralelo. Lo que
+  // corre en paralelo son los pedidos DENTRO de una prueba (concurrencia).
   workers: 1,
   fullyParallel: false,
 
