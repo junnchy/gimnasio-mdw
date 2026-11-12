@@ -83,7 +83,7 @@ export default async function InscriptosDeClase({ params }: Props) {
               <li key={reserva.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
                   <p className="font-medium break-words">{reserva.socio.nombre}</p>
-                  {/* El mail es dato de contacto: lo ve recepción, no el profesor (spec §2). */}
+                  {/* El mail es dato de contacto: lo ve recepción, no el profesor (spec §6). */}
                   {usuario.rol === "ADMIN" ? <p className="text-sm break-all text-muted-foreground">{reserva.socio.email}</p> : null}
                   <p className="text-sm text-muted-foreground">Reservó el {formatearFecha(reserva.createdAt)}</p>
                 </div>
