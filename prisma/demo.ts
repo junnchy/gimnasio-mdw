@@ -1,6 +1,7 @@
 /**
- * Datos para la demo de la entrega: una semana de clases, socios con
- * membresía y las cuentas de Google que se van a mostrar listas para usar.
+ * Datos para la demo y para que la cátedra pruebe el sistema: clases desde
+ * mañana hasta fin de enero, socios con la membresía al día hasta esa fecha y
+ * las cuentas de Google que se van a mostrar listas para usar.
  *
  * Correr con: npm run db:demo
  *
@@ -9,17 +10,21 @@
  *
  *   DEMO_SOCIO_EMAIL="alguien@gmail.com"     socio que escanea y reserva
  *   DEMO_PROFESOR_EMAIL="otra@gmail.com"     (opcional) profesor de varias clases
+ *   DEMO_HASTA="2027-01-31"                  (opcional) último día con clases;
+ *                                            por defecto, el 31 de enero que viene
  *
  * El script NUNCA le cambia el rol a una cuenta que ya existe: si la cuenta
  * del socio o del profesor ya tiene otro rol, avisa y la saltea. Para subir a
  * alguien a ADMIN o PROFESOR está el seed (SEED_ADMIN_EMAIL, SEED_PROFESOR_EMAIL).
  *
- * Tarda uno o dos minutos: son unas 200 consultas, una tras otra, contra la
- * base de Supabase (Canadá). Va mostrando el avance.
+ * Las clases y sus reservas se crean de a lotes (`createMany`): son unas 200
+ * clases, pero alrededor de 60 consultas contra Supabase (Canadá).
  *
  * Se puede correr varias veces: busca antes de crear, igual que el seed. Las
  * fechas son relativas al momento en que se corre (hora de Argentina), así
  * que conviene correrlo la noche anterior o el mismo día de la demo.
+ *
+ * Domingos, 25 de diciembre y 1 de enero no hay clases.
  *
  * Qué deja preparado para el guion:
  *   - El primer Spinning de las 18:00 de un día hábil (mañana, o el lunes si
@@ -47,6 +52,27 @@ function horaArgentina(dias: number, hora: number, minuto = 0): Date {
   const hoyAr = new Date(Date.now() - OFFSET_ARGENTINA_HORAS * 3_600_000);
   return new Date(Date.UTC(hoyAr.getUTCFullYear(), hoyAr.getUTCMonth(), hoyAr.getUTCDate() + dias, hora + OFFSET_ARGENTINA_HORAS, minuto));
 }
+
+/** Una fecha `YYYY-MM-DD`, en Argentina, a una hora dada. */
+function enArgentina(fecha: string, hora: number, minuto = 0): Date {
+  const [anio, mes, dia] = fecha.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(anio, mes - 1, dia, hora + OFFSET_ARGENTINA_HORAS, minuto));
+}
+
+/** `YYYY-MM-DD` del día `dias` después de hoy, en Argentina. */
+function fechaArgentina(dias: number): string {
+  return horaArgentina(dias, 12).toISOString().slice(0, 10);
+}
+
+/** El 31 de enero que viene (este mismo enero, si se corre en enero). */
+function finDeEneroQueViene(): string {
+  const hoy = fechaArgentina(0);
+  const anio = Number(hoy.slice(0, 4)) + (hoy.slice(5, 7) === "01" ? 0 : 1);
+  return `${anio}-01-31`;
+}
+
+const fechaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "DEMO_HASTA tiene que ser YYYY-MM-DD");
+const FERIADOS_SIN_CLASES = ["12-25", "01-01"];
 
 const listaDeMails = z.array(z.string().trim().toLowerCase().email());
 
@@ -87,10 +113,14 @@ async function planes() {
   return { mensual, trimestral, anual };
 }
 
-/** Membresía ACTIVA vigente con su pago aprobado, si el socio no tiene una. */
-async function asegurarMembresia(socioId: string, plan: Plan, inicioHaceDias: number) {
+/**
+ * Membresía ACTIVA que cubre hasta `hasta`, con su pago aprobado. Si el socio
+ * tiene una que vence antes, se le suma otra (renovación): la actual es la de
+ * `fechaFin` más lejana (H8), así que pasa a ser la nueva.
+ */
+async function asegurarMembresia(socioId: string, plan: Plan, inicioHaceDias: number, hasta: Date) {
   const ahora = new Date();
-  const vigente = await prisma.membresia.findFirst({ where: { socioId, estado: EstadoMembresia.ACTIVA, fechaFin: { gt: ahora } } });
+  const vigente = await prisma.membresia.findFirst({ where: { socioId, estado: EstadoMembresia.ACTIVA, fechaFin: { gte: hasta } } });
   if (vigente) return vigente;
   const fechaInicio = new Date(ahora.getTime() - inicioHaceDias * DIA);
   return prisma.membresia.create({
@@ -99,20 +129,6 @@ async function asegurarMembresia(socioId: string, plan: Plan, inicioHaceDias: nu
       pagos: { create: { monto: String(plan.precio), fecha: fechaInicio, medio: MedioPago.EFECTIVO, estado: EstadoPago.APROBADO } },
     },
   });
-}
-
-/**
- * Busca la clase solo entre las de los profesores del script: una clase real
- * con el mismo nombre y horario, de otro profesor, no se toca.
- */
-async function clase(
-  datos: { nombre: string; profesorId: string; cupoMaximo: number; inicio: Date; duracionMin: number; sala: string },
-  profesoresDelScript: readonly string[],
-) {
-  const existente = await prisma.clase.findFirst({
-    where: { nombre: datos.nombre, inicio: datos.inicio, profesorId: { in: [...profesoresDelScript] } },
-  });
-  return existente ?? prisma.clase.create({ data: datos });
 }
 
 async function reservar(socioId: string, claseId: string) {
@@ -138,9 +154,12 @@ async function main() {
   // Los mails se validan antes de escribir nada en la base.
   const mailsSocio = mails("DEMO_SOCIO_EMAIL");
   const mailsProfesor = mails("DEMO_PROFESOR_EMAIL");
+  const hastaTexto = fechaSchema.parse(process.env.DEMO_HASTA?.trim() || finDeEneroQueViene());
+  const hasta = enArgentina(hastaTexto, 23, 59);
+  if (hasta.getTime() <= Date.now()) throw new Error(`DEMO_HASTA (${hastaTexto}) ya pasó.`);
 
   console.log("Conectando a la base y cargando planes…");
-  const { mensual, trimestral, anual } = await planes();
+  const { trimestral, anual } = await planes();
 
   // Profesores: los ficticios y, si se pasó, la cuenta real de la demo.
   const profes: User[] = [
@@ -154,61 +173,92 @@ async function main() {
   }
 
   console.log("Socios de ejemplo…");
-  // Socios ficticios con membresía al día: llenan los cupos de las clases.
+  // Socios ficticios con la membresía al día hasta `hasta`: llenan los cupos.
   const nombres = ["Valentina Pérez", "Tomás Fernández", "Camila López", "Joaquín Martínez", "Sofía Romero", "Mateo Díaz", "Martina Álvarez", "Benjamín Torres"];
   const socios: User[] = [];
   for (const [i, nombre] of nombres.entries()) {
     const email = `${nombre.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(" ", ".")}@ejemplo.com`;
     const socio = await usuario(email, nombre, Rol.SOCIO);
-    await asegurarMembresia(socio.id, i % 3 === 0 ? anual : i % 3 === 1 ? trimestral : mensual, 5 + i * 3);
+    // Trimestral o anual, empezada hace pocos días: así cubre hasta fin de enero.
+    await asegurarMembresia(socio.id, i % 2 === 0 ? anual : trimestral, 2 + i, hasta);
     socios.push(socio);
   }
 
-  // Una semana de clases desde mañana (lunes a sábado), horarios de Argentina.
-  const grilla: { hora: number; minuto?: number; nombre: string; duracionMin: number; cupoMaximo: number; sala: string }[] = [
+  // Clases desde mañana hasta `hasta` (lunes a sábado), horarios de Argentina.
+  type Hueco = { hora: number; minuto?: number; nombre: string; duracionMin: number; cupoMaximo: number; sala: string };
+  const grilla: Hueco[] = [
     { hora: 8, nombre: "Funcional", duracionMin: 45, cupoMaximo: 15, sala: "Sala 2" },
     { hora: 18, nombre: "Spinning", duracionMin: 50, cupoMaximo: 20, sala: "Principal" },
     { hora: 19, minuto: 30, nombre: "Yoga", duracionMin: 60, cupoMaximo: 12, sala: "Sala 3" },
   ];
-  const creadas = [];
-  const idsProfes = profes.map((p) => p.id);
+  const sabado: Hueco[] = [{ hora: 10, nombre: "Spinning", duracionMin: 50, cupoMaximo: 20, sala: "Principal" }];
+  type Turno = { nombre: string; profesorId: string; cupoMaximo: number; inicio: Date; duracionMin: number; sala: string; dia: number; anotados: number; ultimoCupo: boolean };
+  const turnos: Turno[] = [];
   let ultimoCupoListo = false;
-  for (let dia = 1; dia <= 7; dia++) {
-    const fecha = horaArgentina(dia, 12);
-    const diaSemana = fecha.getUTCDay(); // 0 domingo … 6 sábado
-    if (diaSemana === 0) continue;
-    const delDia = diaSemana === 6 ? [{ hora: 10, nombre: "Spinning", duracionMin: 50, cupoMaximo: 20, sala: "Principal" }] : grilla;
-    for (const [j, item] of delDia.entries()) {
-      // El primer Spinning de las 18 de la semana: con un solo lugar libre.
+  for (let dia = 1; fechaArgentina(dia) <= hastaTexto; dia++) {
+    const fecha = fechaArgentina(dia);
+    const diaSemana = horaArgentina(dia, 12).getUTCDay(); // 0 domingo … 6 sábado
+    if (diaSemana === 0 || FERIADOS_SIN_CLASES.includes(fecha.slice(5))) continue;
+    for (const [j, item] of (diaSemana === 6 ? sabado : grilla).entries()) {
+      // El primer Spinning de las 18 en un día hábil: con un solo lugar libre.
       // No "mañana": un viernes o un sábado, mañana no hay clase a las 18.
       const ultimoCupo = !ultimoCupoListo && item.hora === 18;
       if (ultimoCupo) ultimoCupoListo = true;
-      const profesor = profes[(dia + j) % profes.length] ?? profes[0]!;
-      const c = await clase({
-        nombre: item.nombre, profesorId: profesor.id,
-        cupoMaximo: ultimoCupo ? 6 : item.cupoMaximo, inicio: horaArgentina(dia, item.hora, item.minuto ?? 0),
-        duracionMin: item.duracionMin, sala: item.sala,
-      }, idsProfes);
-      if (ultimoCupo) await dejarUnLugarLibre(c.id, socios.slice(0, 5));
-      else for (const socio of socios.slice(0, (dia * 3 + j * 2) % 7)) await reservar(socio.id, c.id);
-      creadas.push({ c, dia, item });
-      console.log(`Clase ${creadas.length}: ${item.nombre} ${c.inicio.toISOString().slice(0, 16)} UTC`);
+      turnos.push({
+        nombre: item.nombre, profesorId: (profes[(dia + j) % profes.length] ?? profes[0]!).id,
+        cupoMaximo: ultimoCupo ? 6 : item.cupoMaximo, inicio: enArgentina(fecha, item.hora, item.minuto ?? 0),
+        duracionMin: item.duracionMin, sala: item.sala, dia, anotados: (dia * 3 + j * 2) % 7, ultimoCupo,
+      });
     }
   }
 
+  // Se busca solo entre las clases de los profesores del script: una clase
+  // real con el mismo nombre y horario, de otro profesor, no se toca.
+  const idsProfes = profes.map((p) => p.id);
+  const clave = (c: { nombre: string; inicio: Date }) => `${c.nombre}|${c.inicio.toISOString()}`;
+  const rango = { gte: turnos[0]?.inicio ?? hasta, lte: hasta };
+  const existentes = new Set(
+    (await prisma.clase.findMany({ where: { profesorId: { in: idsProfes }, inicio: rango }, select: { nombre: true, inicio: true } })).map(clave),
+  );
+  const nuevas = turnos.filter((t) => !existentes.has(clave(t)));
+  console.log(`Clases: ${turnos.length} hasta el ${hastaTexto}, ${nuevas.length} nuevas…`);
+  await prisma.clase.createMany({
+    data: nuevas.map(({ nombre, profesorId, cupoMaximo, inicio, duracionMin, sala }) => ({ nombre, profesorId, cupoMaximo, inicio, duracionMin, sala })),
+  });
+  const guardadas = await prisma.clase.findMany({ where: { profesorId: { in: idsProfes }, inicio: rango }, select: { id: true, nombre: true, inicio: true } });
+  const idPorClave = new Map<string, string>(guardadas.map((c: { id: string; nombre: string; inicio: Date }) => [clave(c), c.id]));
+  const idDe = (t: Turno) => {
+    const id = idPorClave.get(clave(t));
+    if (!id) throw new Error(`No se encontró la clase ${clave(t)}`);
+    return id;
+  };
+
+  // Reservas de los socios ficticios, de a lotes. `skipDuplicates` respeta el
+  // índice único parcial: una reserva confirmada que ya estaba no se repite.
+  console.log("Reservas…");
+  await prisma.reserva.createMany({
+    data: turnos
+      .filter((t) => !t.ultimoCupo)
+      .flatMap((t) => socios.slice(0, t.anotados).map((socio) => ({ socioId: socio.id, claseId: idDe(t) }))),
+    skipDuplicates: true,
+  });
+  const ultimo = turnos.find((t) => t.ultimoCupo);
+  if (ultimo) await dejarUnLugarLibre(idDe(ultimo), socios.slice(0, 5));
+
   // Las cuentas reales del socio de la demo.
-  const yoga = creadas.find(({ dia, item }) => dia >= 2 && item.nombre === "Yoga")?.c;
+  const yogaTurno = turnos.find((t) => t.dia >= 2 && t.nombre === "Yoga");
+  const yoga = yogaTurno ? { id: idDe(yogaTurno) } : undefined;
   for (const email of mailsSocio) {
     const socio = await cuentaReal(email, Rol.SOCIO);
     if (!socio) continue;
-    await asegurarMembresia(socio.id, mensual, 3);
+    await asegurarMembresia(socio.id, trimestral, 3, hasta);
     if (yoga) await reservar(socio.id, yoga.id);
     // Sin visita abierta: el primer escaneo de la demo tiene que ser un ingreso.
     await prisma.visita.updateMany({ where: { socioId: socio.id, estado: EstadoVisita.ABIERTA }, data: { estado: EstadoVisita.INCOMPLETA } });
     console.log(`Socio de la demo listo: ${email}`);
   }
 
-  console.log(`Demo lista: ${creadas.length} clases en la semana, ${socios.length} socios con membresía.`);
+  console.log(`Demo lista: ${turnos.length} clases hasta el ${hastaTexto}, ${socios.length} socios con membresía.`);
 }
 
 main()
