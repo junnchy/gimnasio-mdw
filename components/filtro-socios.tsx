@@ -8,6 +8,7 @@
  * encontraría a los que quedaron afuera. Filtra en memoria las filas que ya llegaron con
  * el HTML (como `FiltroClases`).
  */
+import Link from "next/link";
 import { useState } from "react";
 import { InsigniaMembresia } from "@/components/insignia-membresia";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,9 @@ export function FiltroSocios({ socios, total }: { socios: FilaSocio[]; total: nu
           {visibles.map((socio) => (
             <li key={socio.id} className="flex flex-wrap items-start justify-between gap-3 p-4">
               <div className="min-w-0">
-                <p className="font-medium break-words">{socio.nombre}</p>
+                <Link href={`/socios/${socio.id}`} className="font-medium break-words underline underline-offset-4">
+                  {socio.nombre}
+                </Link>
                 <p className="text-sm break-all text-muted-foreground">{socio.email}</p>
                 <p className="text-sm text-muted-foreground">
                   {socio.plan ? `${socio.plan} · ${socio.vencimiento}` : "Nunca tuvo una membresía"}

@@ -130,9 +130,12 @@ model Membresia {
   plan  Plan  @relation(fields: [planId], references: [id], onDelete: Restrict)
   pagos Pago[]
 
-  // Regla H8 (la base no puede expresarla): si un socio llega a tener varias
-  // membresías vigentes a la vez, gana la de `fechaFin` más lejana. Todas las
-  // pantallas la eligen con ese criterio, no a criterio de cada una.
+  // Un socio tiene UNA sola membresía ACTIVA (spec §6). Índice único parcial,
+  // SQL a mano en la migración 20261123220000 (Prisma no lo expresa):
+  //   CREATE UNIQUE INDEX "Membresia_socio_activa_key"
+  //   ON "Membresia"("socioId") WHERE "estado" = 'ACTIVA';
+  // Regla H8: la membresía "actual" es la de `fechaFin` más lejana (puede
+  // haber CANCELADAS anteriores). Todas las pantallas eligen con ese criterio.
   @@index([socioId])
   @@index([planId])
   // Membresías que vencen (fechaFin en el pasado): la consulta que calcula

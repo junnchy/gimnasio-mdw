@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { crearClase, listarClases } from "@/lib/db/clases";
+import { listarClases } from "@/lib/db/clases";
+import { programarClase } from "@/lib/casos/programarClase";
 import { claseSchema } from "@/lib/schemas/clase";
 import { limiteLista } from "@/lib/schemas/_common";
 import { requerirUsuario } from "@/lib/auth";
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     const resultado = claseSchema.omit({ profesorId: true }).safeParse(await leerBody(request));
     if (!resultado.success) return datosInvalidos(resultado.error.flatten());
     // El profesorId sale de la sesión, nunca del body.
-    const clase = await crearClase(resultado.data, profesor.id);
+    const clase = await programarClase(profesor.id, resultado.data);
     return NextResponse.json(clase, { status: 201 });
   } catch (error) {
     return responderError("POST /api/clases", error);

@@ -114,19 +114,48 @@ async function planes() {
 }
 
 /**
- * Membresía ACTIVA que cubre hasta `hasta`, con su pago aprobado. Si el socio
- * tiene una que vence antes, se le suma otra (renovación): la actual es la de
- * `fechaFin` más lejana (H8), así que pasa a ser la nueva.
+ * Membresía ACTIVA que cubre hasta `hasta`, con su pago aprobado. Un socio
+ * tiene UNA sola ACTIVA (índice `Membresia_socio_activa_key`): si la que tiene
+ * vence antes de `hasta`, no se le crea otra, se la renueva como lo hace la
+ * H7 —un pago aprobado por período, contado desde el vencimiento vigente—.
+ * Así correr la demo dos veces no suma ni membresías ni pagos.
  */
 async function asegurarMembresia(socioId: string, plan: Plan, inicioHaceDias: number, hasta: Date) {
   const ahora = new Date();
-  const vigente = await prisma.membresia.findFirst({ where: { socioId, estado: EstadoMembresia.ACTIVA, fechaFin: { gte: hasta } } });
-  if (vigente) return vigente;
-  const fechaInicio = new Date(ahora.getTime() - inicioHaceDias * DIA);
-  return prisma.membresia.create({
+  const actual = await prisma.membresia.findFirst({
+    where: { socioId, estado: EstadoMembresia.ACTIVA },
+    orderBy: { fechaFin: "desc" },
+    include: { plan: true },
+  });
+  if (!actual) {
+    const fechaInicio = new Date(ahora.getTime() - inicioHaceDias * DIA);
+    let fechaFin = new Date(fechaInicio.getTime() + plan.duracionDias * DIA);
+    const pagos = [{ monto: String(plan.precio), fecha: fechaInicio, medio: MedioPago.EFECTIVO, estado: EstadoPago.APROBADO }];
+    while (fechaFin < hasta) {
+      pagos.push({ monto: String(plan.precio), fecha: ahora, medio: MedioPago.EFECTIVO, estado: EstadoPago.APROBADO });
+      fechaFin = new Date(fechaFin.getTime() + plan.duracionDias * DIA);
+    }
+    return prisma.membresia.create({
+      data: { socioId, planId: plan.id, fechaInicio, fechaFin, estado: EstadoMembresia.ACTIVA, pagos: { create: pagos } },
+    });
+  }
+  if (actual.fechaFin >= hasta) return actual;
+
+  let fechaFin = actual.fechaFin > ahora ? actual.fechaFin : ahora;
+  let renovaciones = 0;
+  while (fechaFin < hasta) {
+    fechaFin = new Date(fechaFin.getTime() + actual.plan.duracionDias * DIA);
+    renovaciones++;
+  }
+  return prisma.membresia.update({
+    where: { id: actual.id },
     data: {
-      socioId, planId: plan.id, fechaInicio, fechaFin: new Date(fechaInicio.getTime() + plan.duracionDias * DIA), estado: EstadoMembresia.ACTIVA,
-      pagos: { create: { monto: String(plan.precio), fecha: fechaInicio, medio: MedioPago.EFECTIVO, estado: EstadoPago.APROBADO } },
+      fechaFin,
+      pagos: {
+        create: Array.from({ length: renovaciones }, () => ({
+          monto: String(actual.plan.precio), fecha: ahora, medio: MedioPago.EFECTIVO, estado: EstadoPago.APROBADO,
+        })),
+      },
     },
   });
 }

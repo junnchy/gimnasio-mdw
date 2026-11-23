@@ -34,3 +34,25 @@ export function estadoMembresiaVista(
 export function membresiaHabilita(estado: EstadoMembresiaVista | null): boolean {
   return estado === "ACTIVA";
 }
+
+const DIA = 86_400_000;
+
+/**
+ * Asignar un plan (/socios/:id): la membresía cubre `duracionDias` desde el
+ * día de inicio. La calcula el servidor con la duración del plan, así
+ * recepción no puede cargar un período distinto del que se cobra.
+ */
+export function calcularFechaFin(fechaInicio: Date, duracionDias: number): Date {
+  return new Date(fechaInicio.getTime() + duracionDias * DIA);
+}
+
+/**
+ * Lo que la pantalla de un socio ofrece: asignar un plan si no tiene una
+ * membresía ACTIVA (ninguna, o la actual está CANCELADA), o cobrar si la
+ * tiene, aunque esté vencida (H7: el pago la renueva). Es la misma regla que
+ * hace cumplir el índice `Membresia_socio_activa_key`: con una ACTIVA, otra
+ * alta se rechaza.
+ */
+export function puedeAsignarPlan(estado: EstadoMembresiaVista | null): boolean {
+  return estado === null || estado === "CANCELADA";
+}

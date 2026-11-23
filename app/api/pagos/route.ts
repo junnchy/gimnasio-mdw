@@ -1,9 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { obtenerMembresiaParaPago } from "@/lib/db/membresias";
-import { registrarPago } from "@/lib/db/pagos";
-import { puedeRegistrarPago } from "@/lib/pago";
-import { crearPreferenciaDePago } from "@/lib/servicios/mercadoPago";
+import { MENSAJE_MP_NO_DISPONIBLE, registrarPago } from "@/lib/casos/registrarPago";
 import { pagoSchema } from "@/lib/schemas/pago";
 import { requerirUsuario } from "@/lib/auth";
 import { responderError } from "@/lib/errores";
@@ -20,36 +16,17 @@ export async function POST(request: Request) {
     const resultado = pagoSchema.omit({ estado: true, refExterna: true }).safeParse(await leerBody(request));
     if (!resultado.success) return datosInvalidos(resultado.error.flatten());
 
-    const membresia = await obtenerMembresiaParaPago(resultado.data.membresiaId);
-    if (!membresia) return noEncontrado("Membresía no encontrada");
-
-    const veredicto = puedeRegistrarPago({ estadoMembresia: membresia.estado });
-    if (!veredicto.ok) return conflicto(veredicto);
-
-    // EFECTIVO: el camino manual. No pasa por Mercado Pago.
-    if (resultado.data.medio === "EFECTIVO") {
-      const { pago, renovada, fechaFin } = await registrarPago(resultado.data, membresia, new Date());
-      return NextResponse.json({ pago, membresia: { renovada, fechaFin }, checkoutUrl: null }, { status: 201 });
+    // Las reglas (EFECTIVO vs MP, membresía cancelada, Mercado Pago caído)
+    // viven en el caso de uso, compartido con la pantalla /socios/:id.
+    const registro = await registrarPago(resultado.data, new Date());
+    if (!registro.ok) {
+      if (registro.tipo === "NO_ENCONTRADO") return noEncontrado("Membresía no encontrada");
+      if (registro.tipo === "CONFLICTO") return conflicto(registro.veredicto);
+      return servicioExternoCaido(MENSAJE_MP_NO_DISPONIBLE);
     }
 
-    // MP: Mercado Pago es ESENCIAL (spec §8). Sin link de cobro no hay pago
-    // MP que registrar, así que la preferencia se pide ANTES de tocar la base.
-    // El id del pago se genera acá porque viaja como `external_reference`: es
-    // lo que el webhook usa después para encontrarlo.
-    const id = randomUUID();
-    const preferencia = await crearPreferenciaDePago({ id, monto: resultado.data.monto });
-    if (!preferencia) {
-      return servicioExternoCaido(
-        "Mercado Pago no está disponible en este momento. No es un problema de los datos cargados: " +
-          "probá de nuevo en unos minutos o registrá el pago en efectivo.",
-      );
-    }
-
-    const { pago, renovada, fechaFin } = await registrarPago({ ...resultado.data, id }, membresia, new Date());
-    return NextResponse.json(
-      { pago, membresia: { renovada, fechaFin }, checkoutUrl: preferencia.init_point },
-      { status: 201 },
-    );
+    const { pago, renovada, fechaFin, checkoutUrl } = registro.dato;
+    return NextResponse.json({ pago, membresia: { renovada, fechaFin }, checkoutUrl }, { status: 201 });
   } catch (error) {
     return responderError("POST /api/pagos", error);
   }

@@ -5,7 +5,7 @@ import { esDuplicado } from "@/lib/db/errores";
 import { OperacionConcurrente } from "@/lib/db/operacionSocio";
 
 type Codigo = CodigoRechazoReserva | CodigoRechazoCancelacion | CodigoRechazoEscaneo
-  | "RESERVA_DUPLICADA" | "VISITA_ABIERTA_DUPLICADA" | "OPERACION_CONCURRENTE";
+  | "RESERVA_DUPLICADA" | "VISITA_ABIERTA_DUPLICADA" | "OPERACION_CONCURRENTE" | "MEMBRESIA_ACTIVA_DUPLICADA";
 
 export type Rechazo = { ok: false; tipo: "NO_ENCONTRADO"; mensaje: string }
   | { ok: false; tipo: "CONFLICTO"; motivos: readonly Motivo<Codigo>[] };

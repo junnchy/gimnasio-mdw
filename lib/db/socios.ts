@@ -50,3 +50,39 @@ export async function listarSociosConMembresia(
   ]);
   return { socios, total };
 }
+
+export const LIMITE_PAGOS = 10;
+
+/**
+ * Un socio con su membresía actual y los últimos pagos de esa membresía
+ * (pantalla /socios/:id). Exige ADMIN, como el listado. Si el id no es de un
+ * SOCIO —no existe, o es de un profesor o un admin— devuelve `null` y la
+ * pantalla responde 404.
+ */
+export async function obtenerSocioConMembresia(quien: { rol: RolUsuario }, socioId: string) {
+  exigirAdmin(quien);
+  return prisma.user.findFirst({
+    where: { id: socioId, rol: "SOCIO" },
+    select: {
+      id: true,
+      nombre: true,
+      email: true,
+      membresias: {
+        orderBy: { fechaFin: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          estado: true,
+          fechaInicio: true,
+          fechaFin: true,
+          plan: { select: { nombre: true, precio: true } },
+          pagos: {
+            orderBy: { fecha: "desc" },
+            take: LIMITE_PAGOS,
+            select: { id: true, monto: true, fecha: true, medio: true, estado: true },
+          },
+        },
+      },
+    },
+  });
+}

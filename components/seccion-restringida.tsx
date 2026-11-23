@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
  * medida de seguridad: la pantalla igual no consulta nada si el rol no
  * alcanza, y las consultas de inscriptos llevan el rol en el WHERE.
  */
-export function SeccionRestringida({ para }: { para: "administración" | "el staff del gimnasio" }) {
+export function SeccionRestringida({ para }: { para: "administración" | "el staff del gimnasio" | "los profesores" }) {
   return (
     <Alert>
       <AlertTitle>Esta sección es para {para}</AlertTitle>

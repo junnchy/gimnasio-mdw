@@ -24,6 +24,8 @@ export type DatosDePrueba = {
   rutinaId: string;
   ejercicioId: string;
   planId: string;
+  /** Un socio cualquiera, para las pantallas de recepción que muestran uno solo (/socios/:id). */
+  otroSocioId: string;
 };
 
 /** Las personas de las pruebas. Las que no están en el seed las crea `preparar.ts`. */
