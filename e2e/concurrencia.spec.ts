@@ -10,6 +10,9 @@
  *   - "El cupo de una clase nunca puede quedar negativo".
  *   - Un socio no reserva dos veces la misma clase (índice único parcial
  *     `Reserva_socio_clase_confirmada_key`).
+ *   - Un socio no tiene dos membresías ACTIVAS a la vez (índice único parcial
+ *     `Membresia_socio_activa_key`): dos personas de recepción, o dos
+ *     pestañas, asignándole un plan al mismo tiempo.
  *
  * Las hace cumplir la base, no un `if`: la reserva corre en una transacción
  * SERIALIZABLE (`lib/db/operacionSocio.ts`) y el duplicado lo frena el índice.
@@ -139,4 +142,28 @@ test(`el mismo socio, ${PEDIDOS_A_LA_VEZ} veces la misma reserva: queda una`, as
 
   const confirmadas = await prisma.reserva.count({ where: { claseId: clase.id, socioId: socio.id, estado: "CONFIRMADA" } });
   expect(confirmadas).toBe(1);
+});
+
+test(`recepción asigna un plan ${PEDIDOS_A_LA_VEZ} veces a la vez al mismo socio: queda una membresía activa`, async ({ request }) => {
+  const admin = await prisma.user.findUniqueOrThrow({ where: { email: "admin@ejemplo.com" } });
+  const plan = await prisma.plan.findUniqueOrThrow({ where: { nombre: "Plan e2e" } });
+  // Un socio nuevo en cada intento, sin membresía: lo único que puede rechazar es la regla.
+  const email = `${PREFIJO}-alta-${Date.now()}@ejemplo.com`;
+  const socio = await prisma.user.create({ data: { email, nombre: "Socio sin plan", rol: "SOCIO" } });
+
+  const [h] = await sesiones([admin]);
+  if (!h) throw new Error("no se armó la sesión");
+  await calentar(request, Array(PEDIDOS_A_LA_VEZ).fill(h));
+
+  const fechaInicio = new Date();
+  const alta = { socioId: socio.id, planId: plan.id, fechaInicio, fechaFin: new Date(fechaInicio.getTime() + 30 * DIA) };
+  const respuestas = await Promise.all(
+    Array.from({ length: PEDIDOS_A_LA_VEZ }, () => request.post("/api/membresias", { data: alta, headers: h })),
+  );
+  const status = respuestas.map((r) => r.status()).sort((a, b) => a - b);
+
+  expect(status).toEqual([201, ...Array(PEDIDOS_A_LA_VEZ - 1).fill(409)]);
+
+  const activas = await prisma.membresia.count({ where: { socioId: socio.id, estado: "ACTIVA" } });
+  expect(activas).toBe(1);
 });
