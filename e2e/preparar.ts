@@ -119,6 +119,7 @@ export default async function preparar() {
       rutinaId: rutina.id,
       ejercicioId: ejercicio.id,
       planId: plan.id,
+      otroSocioId: otroSocio.id,
     };
     mkdirSync(path.dirname(DATOS), { recursive: true });
     writeFileSync(DATOS, JSON.stringify(datos));

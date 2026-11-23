@@ -18,3 +18,7 @@ export async function actualizarPlan(id: string, datos: Partial<Plan>) {
   const { count } = await prisma.plan.updateMany({ where: { id }, data: datos });
   return count > 0 ? prisma.plan.findUnique({ where: { id } }) : null;
 }
+
+export async function obtenerPlan(id: string) {
+  return prisma.plan.findUnique({ where: { id }, select: { id: true, duracionDias: true } });
+}

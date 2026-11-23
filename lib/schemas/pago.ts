@@ -11,3 +11,13 @@ export const pagoSchema = z.object({
   refExterna: z.string().max(120).optional(),
 });
 export type Pago = z.infer<typeof pagoSchema>;
+
+/**
+ * El formulario de /socios/:id para cobrar una cuota (ADMIN). Mismas reglas
+ * que `pagoSchema`; ni el estado ni la fecha vienen del formulario: el estado
+ * lo decide el servidor según el medio (spec §8) y la fecha es la del cobro.
+ */
+export const registrarPagoFormSchema = pagoSchema.pick({ membresiaId: true, medio: true }).extend({
+  membresiaId: id.max(128),
+  monto: z.coerce.number({ invalid_type_error: "Ingresá el monto en números" }).pipe(pagoSchema.shape.monto),
+});

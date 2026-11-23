@@ -131,8 +131,10 @@ Fuera del flujo principal:
 | Mis reservas (H4, H5) | `/reservas` | SOCIO |
 | Detalle de una reserva | `/reservas/:id` | SOCIO, solo si es suya (si no, 404) |
 | Reservar una clase (H4) | `/clases` | SOCIO · clase 12 |
+| Programar una clase | `/clases/nueva` | PROFESOR. La clase queda a su nombre (el `profesorId` sale de la sesión, como en `POST /api/clases`). Se llega desde el inicio del profesor |
 | Inscriptos de una clase (base de H6) | `/clases/:id` | ADMIN (todas) y PROFESOR (solo las que dicta; la de otro, 404). Se llega desde el nombre de la clase en el inicio |
 | Socios y su membresía (H8 vista por recepción) | `/socios` | ADMIN |
+| Membresía y pagos de un socio (H7) | `/socios/:id` | ADMIN. Asigna un plan (si no tiene membresía o está CANCELADA) y registra el pago: EFECTIVO renueva al instante; MP genera el link de cobro y renueva cuando lo confirma el webhook. Se llega desde el nombre del socio en `/socios`. Si el id no es de un socio, 404 |
 | Galería de componentes | `/sistema` | Con sesión. Herramienta del equipo: no está enlazada en la interfaz, se abre por la dirección |
 
 Lo que el mapa deja a la vista:
@@ -145,6 +147,11 @@ Lo que el mapa deja a la vista:
   la cancelación de una reserva propia. Las tres operaciones verifican sesión y rol SOCIO.
   Al reservar se abre el detalle nuevo; al cancelar se permanece en el detalle actualizado;
   el resultado de ingreso/egreso permanece en `/escanear`. Pagos y reportes no son parte de esta entrega.
+- **Gestión (después de la clase 14):** `/clases/nueva` y `/socios/:id` son la interfaz de operaciones
+  que la API ya tenía (`POST /api/clases`, `POST /api/membresias`, `POST /api/pagos`). Usan las mismas
+  reglas y los mismos casos de uso que la API, con una Server Action que verifica el rol (PROFESOR o
+  ADMIN) antes de procesar. Al programar se abre el detalle de la clase nueva (`/clases/:id`); al asignar o cobrar se
+  permanece en `/socios/:id` actualizado. Los reportes siguen fuera de esta entrega.
 
 ## 6. Reglas de negocio
 

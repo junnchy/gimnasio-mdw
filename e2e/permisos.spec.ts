@@ -161,6 +161,33 @@ test.describe("el rol equivocado: 403", () => {
     });
   }
 
+  // Mapa de pantallas: /socios/:id es "ADMIN" (membresía y pagos de un socio).
+  for (const [rol, sesion] of [["un socio", SESION.socio], ["un profesor", SESION.profesor]] as const) {
+    test.describe(`${rol}, en la membresía de un socio`, () => {
+      test.use({ storageState: sesion });
+
+      test("/socios/:id muestra el aviso, no los datos ni el formulario de cobro", async ({ page }) => {
+        await page.goto(`/socios/${datos().otroSocioId}`);
+        await expect(page.getByText("Esta sección es para administración")).toBeVisible();
+        await expect(page.getByText(PERSONAS.otroSocio.email)).toHaveCount(0);
+        await expect(page.getByRole("button", { name: /Registrar pago|Asignar plan/ })).toHaveCount(0);
+      });
+    });
+  }
+
+  // Mapa de pantallas: /clases/nueva es "PROFESOR". El admin tampoco programa (matriz).
+  for (const [rol, sesion] of [["un socio", SESION.socio], ["el admin", SESION.admin]] as const) {
+    test.describe(`${rol}, al programar una clase`, () => {
+      test.use({ storageState: sesion });
+
+      test("/clases/nueva muestra el aviso y no el formulario", async ({ page }) => {
+        await page.goto("/clases/nueva");
+        await expect(page.getByText("Esta sección es para los profesores")).toBeVisible();
+        await expect(page.getByRole("button", { name: "Programar clase" })).toHaveCount(0);
+      });
+    });
+  }
+
   // El control: con la sesión de admin, las mismas pantallas sí muestran los
   // datos. Sin esto, el "no los datos" de arriba pasaría con una pantalla vacía.
   test.describe("el admin, en las pantallas de recepción", () => {
@@ -170,6 +197,24 @@ test.describe("el rol equivocado: 403", () => {
       await page.goto("/socios");
       await expect(page.getByRole("heading", { level: 1, name: "Socios" })).toBeVisible();
       await expect(page.getByText(PERSONAS.otroSocio.email)).toBeVisible();
+    });
+
+    test("/socios/:id muestra la membresía del socio y cómo cobrarla", async ({ page }) => {
+      await page.goto(`/socios/${datos().otroSocioId}`);
+      await expect(page.getByRole("heading", { level: 1, name: PERSONAS.otroSocio.nombre })).toBeVisible();
+      await expect(page.getByText(PERSONAS.otroSocio.email)).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Membresía" })).toBeVisible();
+    });
+  });
+
+  // El control de /clases/nueva: el profesor sí ve el formulario.
+  test.describe("el profesor, al programar una clase", () => {
+    test.use({ storageState: SESION.profesor });
+
+    test("/clases/nueva muestra el formulario", async ({ page }) => {
+      await page.goto("/clases/nueva");
+      await expect(page.getByRole("heading", { level: 1, name: "Programar una clase" })).toBeVisible();
+      await expect(page.getByLabel("Nombre de la clase")).toBeVisible();
     });
   });
 
@@ -225,6 +270,17 @@ test.describe("lo ajeno no existe: 404", () => {
     test("no le agrega ejercicios a la rutina de otro profesor", async ({ request }) => {
       const respuesta = await request.post(`/api/rutinas/${datos().rutinaId}/ejercicios`, { data: ITEM_DE_RUTINA() });
       expect(respuesta.status()).toBe(404);
+    });
+  });
+
+  // /socios/:id de algo que no es un socio: el mismo 404 que si no existiera.
+  test.describe("el admin, con un id que no es de un socio", () => {
+    test.use({ storageState: SESION.admin });
+
+    test("/socios/:id de un id inexistente no muestra datos", async ({ page }) => {
+      const respuesta = await page.goto("/socios/no-existe-este-socio");
+      expect(respuesta?.status()).toBe(404);
+      await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
     });
   });
 

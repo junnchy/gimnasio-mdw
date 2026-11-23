@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { FiltroClases } from "@/components/filtro-clases";
+import { Button } from "@/components/ui/button";
 import { SinDatos } from "@/components/sin-datos";
 import { listarProximasClases } from "@/lib/db/clases";
 import { aFilaClase } from "@/lib/filaClase";
@@ -20,9 +22,17 @@ export async function PanelClases({ usuarioId, rol }: { usuarioId: string; rol: 
 
   return (
     <section aria-labelledby="titulo-clases">
-      <h2 id="titulo-clases" className="text-lg font-bold">
-        Próximas clases
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="titulo-clases" className="text-lg font-bold">
+          Próximas clases
+        </h2>
+        {/* Cortesía: /clases/nueva y la Server Action verifican el rol igual. */}
+        {esProfesor ? (
+          <Button render={<Link href="/clases/nueva" />} nativeButton={false} className="min-h-11">
+            Programar una clase
+          </Button>
+        ) : null}
+      </div>
       {/* Vacío (no hay ninguna) lo decide el servidor; "sin resultados" (hay, pero el filtro no encontró), FiltroClases. */}
       {clases.length === 0 ? (
         <div className="mt-4">

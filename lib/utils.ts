@@ -39,3 +39,33 @@ export function formatearFecha(fecha: Date): string {
 export function formatearHora(fecha: Date): string {
   return formatoHora.format(fecha);
 }
+
+const formatoMonto = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
+
+/** "$ 15.000,00" */
+export function formatearMonto(monto: number): string {
+  return formatoMonto.format(monto);
+}
+
+/**
+ * Argentina no tiene horario de verano desde 2009: la zona del gimnasio es
+ * UTC−3 todo el año. Los formularios mandan la hora "de pared" del gimnasio
+ * (un `<input type="datetime-local">` no lleva zona), y el servidor corre en
+ * UTC: sin esto, una clase de las 18:00 quedaría guardada a las 15:00.
+ */
+const DESFASE_ARGENTINA = "-03:00";
+
+/** "2026-12-01T18:00" (hora del gimnasio) → el instante. Inválida → `Invalid Date`. */
+export function fechaHoraArgentina(valor: string): Date {
+  return new Date(`${valor}:00${DESFASE_ARGENTINA}`);
+}
+
+/** "2026-12-01" (día del gimnasio) → las 00:00 de ese día en Argentina. */
+export function inicioDelDiaEnArgentina(valor: string): Date {
+  return new Date(`${valor}T00:00:00${DESFASE_ARGENTINA}`);
+}
+
+/** El día de hoy en el gimnasio, como lo pide un `<input type="date">`: "2026-12-01". */
+export function hoyEnArgentina(ahora: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: ZONA_HORARIA }).format(ahora);
+}
