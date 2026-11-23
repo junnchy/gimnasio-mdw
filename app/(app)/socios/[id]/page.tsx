@@ -12,7 +12,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { requerirUsuarioEnPantalla } from "@/lib/auth";
 import { listarPlanes } from "@/lib/db/planes";
 import { obtenerSocioConMembresia } from "@/lib/db/socios";
-import { estadoMembresiaVista } from "@/lib/membresia";
+import { estadoMembresiaVista, puedeAsignarPlan } from "@/lib/membresia";
 import { id } from "@/lib/schemas/_common";
 import { formatearFecha, formatearMonto, hoyEnArgentina } from "@/lib/utils";
 
@@ -42,7 +42,8 @@ export default async function SocioDetalle({ params, searchParams }: Props) {
   const ahora = new Date();
   const membresia = socio.membresias[0];
   const estado = membresia ? estadoMembresiaVista(membresia, ahora) : null;
-  const puedeCobrar = membresia && estado !== "CANCELADA";
+  // La misma regla que hace cumplir el índice `Membresia_socio_activa_key`.
+  const puedeCobrar = membresia && !puedeAsignarPlan(estado);
   const { asignado } = await searchParams;
 
   return (

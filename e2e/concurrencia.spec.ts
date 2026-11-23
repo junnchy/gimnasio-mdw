@@ -52,10 +52,14 @@ test.beforeAll(async () => {
       update: {},
       create: { email, nombre: `Socio concurrente ${i}`, rol: "SOCIO" },
     });
-    const vigente = await prisma.membresia.findFirst({ where: { socioId: socio.id, fechaFin: { gt: new Date(Date.now() + DIA) } } });
-    if (!vigente) {
+    // Una sola ACTIVA por socio (índice único): si ya tiene, se la extiende.
+    const fechaFin = new Date(Date.now() + 30 * DIA);
+    const activa = await prisma.membresia.findFirst({ where: { socioId: socio.id, estado: "ACTIVA" } });
+    if (activa) {
+      await prisma.membresia.update({ where: { id: activa.id }, data: { fechaFin } });
+    } else {
       await prisma.membresia.create({
-        data: { socioId: socio.id, planId: plan.id, fechaInicio: new Date(), fechaFin: new Date(Date.now() + 30 * DIA), estado: "ACTIVA" },
+        data: { socioId: socio.id, planId: plan.id, fechaInicio: new Date(), fechaFin, estado: "ACTIVA" },
       });
     }
     socios.push(socio);

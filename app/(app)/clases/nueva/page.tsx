@@ -19,7 +19,7 @@ export default async function NuevaClase() {
   return (
     <div>
       <Link href="/" className="text-sm font-medium underline underline-offset-4">
-        Volver a las clases
+        Volver al inicio
       </Link>
       <h1 className="mt-4 text-2xl font-bold">Programar una clase</h1>
       <p className="mt-1 mb-6 text-muted-foreground">La clase queda a tu nombre y los socios la pueden reservar desde ese momento.</p>

@@ -18,7 +18,7 @@ export function AsignarPlan({ socioId, planes, hoy }: { socioId: string; planes:
   const error = (campo: string) => estado.errores?.[campo]?.join(" ");
 
   if (planes.length === 0) {
-    return <p>Todavía no hay planes cargados. Creá uno con <code>POST /api/planes</code> y volvé a esta pantalla.</p>;
+    return <p>Todavía no hay planes cargados. Cuando el gimnasio tenga un plan, vas a poder asignarlo desde acá.</p>;
   }
 
   return (

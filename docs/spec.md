@@ -161,6 +161,8 @@ Las restricciones que **no** son obvias y que la IA no puede adivinar. Estas son
 - La salida se registra siempre, aunque la membresía haya vencido mientras el socio entrenaba: si no, su visita quedaría ABIERTA hasta el cierre diario y se perdería la duración real (`puedeEscanear` en `lib/visita.ts`, commit c022a4e).
 - Los datos de contacto de un socio (su mail) los ve solo ADMIN. El profesor ve el nombre de los inscriptos de sus clases, no su mail (`/clases/:id`, PR #16).
 - Un socio no puede tener más de una visita ABIERTA simultánea.
+- Un socio no puede tener más de una membresía ACTIVA a la vez; lo hace cumplir la base (índice `Membresia_socio_activa_key`) y el que pierde recibe 409. Una vencida sigue ACTIVA en la base (ADR 0002): se extiende registrando un pago (H7), no con otra alta. Para cambiar de plan, primero se cancela.
+- Al asignar un plan desde `/socios/:id`, la membresía dura lo que dura el plan desde el día de inicio (`calcularFechaFin`); `POST /api/membresias` recibe la `fechaFin` explícita, como dice su contrato. Las dos usan el mismo caso de uso (`lib/casos/asignarMembresia.ts`).
 - Un socio no puede tener dos reservas en el mismo horario.
 - La duración de una visita se calcula de `ingresoAt`/`egresoAt` al leer, nunca se guarda (ADR 0003); una visita INCOMPLETA no computa duración.
 - El cupo de una clase nunca puede quedar negativo; una reserva CANCELADA libera cupo.

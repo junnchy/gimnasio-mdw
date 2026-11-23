@@ -52,7 +52,7 @@ se lo desactiva para conservar el historial.
 | Método y ruta | Qué hace | Rol | Errores |
 |---|---|---|---|
 | `GET /api/membresias/mia` | Devuelve estado y vencimiento propios | Socio | 401, 403, 404 |
-| `POST /api/membresias` | Asigna una membresía a un socio | Admin | 400, 401, 403, 404 |
+| `POST /api/membresias` | Asigna una membresía a un socio | Admin | 400, 401, 403, 404, 409 |
 | `POST /api/pagos` | Registra un intento de pago | Admin | 400, 401, 403, 404, 409, 502 |
 | `POST /api/pagos/webhook` | Recibe la notificación de Mercado Pago y aplica el estado real del pago | Mercado Pago (sin sesión) | 500, 502 |
 
@@ -163,6 +163,7 @@ Cuando fallan varias reglas a la vez, vienen todas.
 | `GET /api/membresias/mia` | H8: el socio no tiene ninguna membresía | Base | 404 | Membresía no encontrada |
 | `POST /api/membresias` | `fechaFin` anterior o igual a `fechaInicio` | Zod | 400 | Datos inválidos |
 | `POST /api/membresias` | El socio o el plan no existen | Base | 404 | Socio o plan no encontrado |
+| `POST /api/membresias` | El socio ya tiene una membresía ACTIVA (índice `Membresia_socio_activa_key`; también si dos altas llegan a la vez) | Base | 409 | Este socio ya tiene una membresía activa. Recargá la página: para extenderla, registrá un pago. |
 | `POST /api/pagos` | `monto` negativo, `medio` fuera del enum o fecha inválida | Zod | 400 | Datos inválidos |
 | `POST /api/pagos` | La membresía no existe | Base | 404 | Membresía no encontrada |
 | `POST /api/pagos` | La membresía está CANCELADA (ADR 0002: cancelar es un hecho) | Regla `MEMBRESIA_CANCELADA` | 409 | La membresía está cancelada: hay que crear una nueva. |

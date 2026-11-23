@@ -1,7 +1,7 @@
 // Regla crítica del ADR 0002: quién gana cuando una membresía cancelada
 // además ya venció, y cuándo se muestra VENCIDA.
 import { describe, it, expect } from "vitest";
-import { estadoMembresiaVista, membresiaHabilita } from "./membresia";
+import { calcularFechaFin, estadoMembresiaVista, membresiaHabilita, puedeAsignarPlan } from "./membresia";
 
 describe("estadoMembresiaVista (ADR 0002)", () => {
   const base = { estado: "ACTIVA" as const, fechaFin: new Date("2026-03-01") };
@@ -37,5 +37,26 @@ describe("membresiaHabilita (spec §6)", () => {
 
   it("un socio sin ninguna membresía no está habilitado", () => {
     expect(membresiaHabilita(null)).toBe(false);
+  });
+});
+
+describe("calcularFechaFin", () => {
+  it("cuenta la duración del plan desde el día de inicio", () => {
+    expect(calcularFechaFin(new Date("2026-12-01T03:00:00.000Z"), 30)).toEqual(new Date("2026-12-31T03:00:00.000Z"));
+  });
+
+  it("un plan anual cruza el año sin perder días", () => {
+    expect(calcularFechaFin(new Date("2026-12-01T03:00:00.000Z"), 365)).toEqual(new Date("2027-12-01T03:00:00.000Z"));
+  });
+});
+
+describe("puedeAsignarPlan", () => {
+  it.each([
+    [null, true],
+    ["CANCELADA", true],
+    ["ACTIVA", false],
+    ["VENCIDA", false],
+  ] as const)("con la membresía %s → %s", (estado, esperado) => {
+    expect(puedeAsignarPlan(estado)).toBe(esperado);
   });
 });
